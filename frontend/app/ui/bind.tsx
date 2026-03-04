@@ -87,7 +87,6 @@ export default function BindPanel({ source }: BindPanelProps) {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -163,19 +162,6 @@ export default function BindPanel({ source }: BindPanelProps) {
       setError(translateApiError(message, t));
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function handleCopy() {
-    if (!me?.user.invite_code) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(me.user.invite_code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setError(t("common.request_failed"));
     }
   }
 
@@ -264,9 +250,6 @@ export default function BindPanel({ source }: BindPanelProps) {
               <CardBody>
                 <div className="bind-code">
                   <p className="bind-code-value">{me.user.invite_code}</p>
-                  <Button type="button" variant="secondary" onClick={() => void handleCopy()}>
-                    {copied ? t("bind.copy_done") : t("bind.copy_code")}
-                  </Button>
                 </div>
                 <p style={{ marginTop: "var(--space-4)", color: "var(--muted)" }}>
                   {isOwner ? t("bind.owner_waiting_hint") : t("bind.puppy_waiting_hint")}
