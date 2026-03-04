@@ -1,0 +1,174 @@
+.login-card {
+  border: none;
+  width: 100%;
+  max-width: 500px;
+  animation: slideInUp var(--transition-slow);
+}
+
+.login-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.login-language-wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.login-shell {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.login-hero {
+  margin-bottom: var(--space-8);
+  text-align: center;
+}
+
+.login-error-block {
+  margin-bottom: var(--space-6);
+}
+
+.login-switch-block {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-4);
+  animation: fadeIn var(--transition-smooth);
+}
+
+.login-tabs {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  border-bottom: 2px solid var(--line);
+}
+
+.login-tab {
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  position: relative;
+}
+
+.login-tab.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+  transform: translateY(2px);
+}
+
+.login-tab:hover:not(.active) {
+  color: var(--ink);
+}
+
+.login-form-group {
+  animation: slideInUp var(--transition-slow);
+}
+
+/* 表单标签动画 */
+.form-label-animated {
+  position: relative;
+  display: inline-block;
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-medium);
+  color: var(--ink);
+}
+
+.form-label-animated .required {
+  color: var(--danger);
+  margin-left: 4px;
+}
+
+/* 输入框聚焦时的标签效果 */
+input:focus ~ .form-label-animated,
+textarea:focus ~ .form-label-animated {
+  color: var(--brand);
+}
+
+/* 错误显示动画 */
+.error-message {
+  animation: slideInDown var(--transition-base);
+  color: var(--danger);
+  font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+/* 成功反馈 */
+.success-feedback {
+  animation: slideInDown var(--transition-base);
+  color: var(--ok);
+  font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 768px) {
+  .login-header {
+    padding: var(--space-4) !important;
+  }
+
+  .login-card {
+    padding: var(--space-4);
+  }
+  
+  .login-container {
+    min-height: 100vh;
+    padding: var(--space-3);
+  }
+
+  .login-hero {
+    margin-bottom: var(--space-6);
+  }
+}
+
+@media (max-width: 480px) {
+  .login-header-bar {
+    align-items: flex-start;
+  }
+
+  .login-brand {
+    width: 100%;
+  }
+
+  .login-language-wrap {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .login-shell {
+    max-width: none;
+  }
+
+  .login-hero {
+    margin-bottom: var(--space-5);
+  }
+
+  .login-hero h1 {
+    font-size: var(--text-2xl) !important;
+  }
+
+  .login-switch-block {
+    text-align: left;
+  }
+}
