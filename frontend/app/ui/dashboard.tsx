@@ -49,7 +49,26 @@ const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws");
+
+function resolveWsBaseUrl(apiBaseUrl: string) {
+  if (apiBaseUrl.startsWith("ws://") || apiBaseUrl.startsWith("wss://")) {
+    return apiBaseUrl;
+  }
+  if (apiBaseUrl.startsWith("http://")) {
+    return `ws://${apiBaseUrl.slice("http://".length)}`;
+  }
+  if (apiBaseUrl.startsWith("https://")) {
+    return `wss://${apiBaseUrl.slice("https://".length)}`;
+  }
+  if (typeof window !== "undefined") {
+    const normalizedBase = apiBaseUrl.startsWith("/") ? apiBaseUrl : `/${apiBaseUrl}`;
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    return `${wsProtocol}://${window.location.host}${normalizedBase}`;
+  }
+  return apiBaseUrl;
+}
+
+const WS_BASE_URL = resolveWsBaseUrl(API_BASE_URL);
 const TOKEN_KEY = "puppy_token";
 const SKIP_BIND_KEY = "puppy_skip_bind";
 
