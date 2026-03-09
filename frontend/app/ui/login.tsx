@@ -218,7 +218,7 @@ export default function LoginPanel() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="login-page">
       <header
         className="login-header"
         style={{
@@ -230,7 +230,7 @@ export default function LoginPanel() {
         <div className="container">
           <div className="login-header-bar wrap-on-mobile">
             <div className="login-brand">
-              <div style={{ fontSize: "1.5rem" }}>P</div>
+              <div className="login-brand-mark">P</div>
               <h1 style={{ margin: 0, fontSize: "var(--text-2xl)" }}>{t("common.app_name")}</h1>
             </div>
             <div className="login-language-wrap full-width-mobile">
@@ -240,7 +240,7 @@ export default function LoginPanel() {
         </div>
       </header>
 
-      <main style={{ flex: 1, display: "flex", alignItems: "center" }} className="container">
+      <main className="container login-main">
         <div className="login-shell">
           <div className="login-hero">
             <p style={{ color: "var(--brand)", fontWeight: "var(--font-bold)", letterSpacing: "0.1em", margin: 0 }}>
@@ -292,19 +292,12 @@ export default function LoginPanel() {
                 <p style={{ margin: 0, color: "var(--muted)" }}>
                   {t("login.no_account")}{" "}
                   <button
+                    className="login-mode-switch"
                     type="button"
                     onClick={() => {
                       setMode("register");
                       setError("");
                       setErrors({});
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--brand)",
-                      cursor: "pointer",
-                      fontWeight: "var(--font-semibold)",
-                      textDecoration: "underline",
                     }}
                   >
                     {t("login.register_link")}
@@ -371,19 +364,12 @@ export default function LoginPanel() {
                 <p style={{ margin: 0, color: "var(--muted)" }}>
                   {t("login.have_account")}{" "}
                   <button
+                    className="login-mode-switch"
                     type="button"
                     onClick={() => {
                       setMode("login");
                       setError("");
                       setErrors({});
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--brand)",
-                      cursor: "pointer",
-                      fontWeight: "var(--font-semibold)",
-                      textDecoration: "underline",
                     }}
                   >
                     {t("login.back_to_login")}

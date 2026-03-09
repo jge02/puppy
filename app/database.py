@@ -341,6 +341,36 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_task_requests_status ON task_requests(status);
             CREATE INDEX IF NOT EXISTS idx_task_requests_relationship_status
                 ON task_requests(relationship_id, status);
+
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id TEXT PRIMARY KEY,
+                relationship_id TEXT NOT NULL,
+                sender_id TEXT NULL,
+                kind TEXT NOT NULL CHECK (kind IN ('text', 'system_task')),
+                content_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                client_msg_id TEXT NULL,
+                FOREIGN KEY (relationship_id) REFERENCES relationships(id),
+                FOREIGN KEY (sender_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS chat_reads (
+                relationship_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                last_read_message_id TEXT NULL,
+                last_read_at TEXT NOT NULL,
+                PRIMARY KEY (relationship_id, user_id),
+                FOREIGN KEY (relationship_id) REFERENCES relationships(id),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (last_read_message_id) REFERENCES chat_messages(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_relationship_id
+                ON chat_messages(relationship_id);
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_relationship_created
+                ON chat_messages(relationship_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_sender_id
+                ON chat_messages(sender_id);
             """
         )
         if not _column_exists(connection, "tasks", "expected_submission_type"):

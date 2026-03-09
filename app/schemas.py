@@ -73,3 +73,8 @@ class SubmitTaskRequest(BaseModel):
 
 class RejectTaskRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class ChatReadRequest(BaseModel):
+    relationship_id: str
+    message_id: str

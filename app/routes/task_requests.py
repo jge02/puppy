@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.database import get_connection, transactional_connection
 from app.dependencies import get_current_user
+from app.realtime import publish_system_task_message_sync
 from app.schemas import CreateTaskRequestRequest, RejectTaskRequestRequest
 from app.services import ensure_relationship_member, load_task_request_with_relationship, row_to_dict, utc_now
 
@@ -85,7 +86,16 @@ def create_task_request(
             ),
         )
         task_request = connection.execute("SELECT * FROM task_requests WHERE id = ?", (task_request_id,)).fetchone()
-        return {"task_request": row_to_dict(task_request)}
+        result = {"task_request": row_to_dict(task_request)}
+    publish_system_task_message_sync(
+        relationship_id=relationship["id"],
+        action="task_request_created",
+        task_id=None,
+        title=payload.title,
+        actor_id=current_user["id"],
+        request_id=task_request_id,
+    )
+    return result
 
 
 @router.post("/task-requests/{request_id}/reject")
@@ -119,4 +129,13 @@ def reject_task_request(
         task_request["status"] = "rejected"
         task_request["handled_at"] = handled_at
         task_request["handled_by"] = current_user["id"]
-        return {"task_request": task_request}
+        result = {"task_request": task_request}
+    publish_system_task_message_sync(
+        relationship_id=task_request["relationship_id"],
+        action="task_request_rejected",
+        task_id=task_request.get("linked_task_id"),
+        title=task_request["title"],
+        actor_id=current_user["id"],
+        request_id=request_id,
+    )
+    return result

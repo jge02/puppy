@@ -5,6 +5,7 @@ import {
   ClockCircleOutlined,
   LinkOutlined,
   LogoutOutlined,
+  MessageOutlined,
   OrderedListOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -33,7 +34,7 @@ import {
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { translateApiError } from "../../lib/i18n/api-errors";
 import type { MessageKey } from "../../lib/i18n/messages";
@@ -48,6 +49,7 @@ const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const WS_BASE_URL = API_BASE_URL.replace(/^http/i, "ws");
 const TOKEN_KEY = "puppy_token";
 const SKIP_BIND_KEY = "puppy_skip_bind";
 
@@ -132,7 +134,36 @@ type TaskRequestFormState = {
 
 type TaskSubmissionPreviewState = Task | null;
 
-type DashboardSection = "overview" | "tasks" | "requests" | "profile";
+type ChatMessageKind = "text" | "system_task";
+
+type ChatMessage = {
+  id: string;
+  relationship_id: string;
+  sender_id: string | null;
+  kind: ChatMessageKind;
+  content: {
+    text?: string;
+    action?: string;
+    task_id?: string | null;
+    title?: string;
+    actor_id?: string;
+    timestamp?: string;
+    request_id?: string;
+  };
+  created_at: string;
+  client_msg_id?: string | null;
+  pending?: boolean;
+  failed?: boolean;
+};
+
+type UnreadState = {
+  relationship_id: string;
+  last_read_message_id: string | null;
+  last_read_at: string | null;
+  unread_count: number;
+};
+
+type DashboardSection = "overview" | "tasks" | "requests" | "chat" | "profile";
 
 const initialTask: TaskFormState = {
   title: "",
@@ -270,9 +301,75 @@ function toAssetUrl(url: string) {
   return `${API_BASE_URL}${url}`;
 }
 
+function createClientMessageId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function isZhLocale(locale: string) {
+  return locale.startsWith("zh");
+}
+
+function getChatCopy(locale: string) {
+  if (isZhLocale(locale)) {
+    return {
+      title: "聊天",
+      sectionHint: "实时对话与任务动态。",
+      online: "在线",
+      connecting: "连接中...",
+      offline: "离线",
+      sending: "发送中...",
+      retry: "重试",
+      empty: "还没有消息",
+      placeholder: "输入消息...",
+      send: "发送",
+      taskCreated: "已创建任务",
+      taskSubmitted: "已提交任务",
+      taskApproved: "任务已通过",
+      taskRejected: "任务已拒绝",
+      requestCreated: "已发起任务请求",
+      requestRejected: "任务请求已拒绝",
+    };
+  }
+  return {
+    title: "Chat",
+    sectionHint: "Real-time conversation and task updates.",
+    online: "Online",
+    connecting: "Connecting...",
+    offline: "Offline",
+    sending: "sending...",
+    retry: "retry",
+    empty: "No messages yet.",
+    placeholder: "Type a message...",
+    send: "Send",
+    taskCreated: "Task created",
+    taskSubmitted: "Task submitted",
+    taskApproved: "Task approved",
+    taskRejected: "Task rejected",
+    requestCreated: "Task request created",
+    requestRejected: "Task request rejected",
+  };
+}
+
+function getSystemTaskText(message: ChatMessage, locale: string) {
+  const copy = getChatCopy(locale);
+  const action = message.content.action;
+  const title = message.content.title || "Task";
+  if (action === "task_created") return `${copy.taskCreated}: ${title}`;
+  if (action === "task_submitted") return `${copy.taskSubmitted}: ${title}`;
+  if (action === "task_approved") return `${copy.taskApproved}: ${title}`;
+  if (action === "task_rejected") return `${copy.taskRejected}: ${title}`;
+  if (action === "task_request_created") return `${copy.requestCreated}: ${title}`;
+  if (action === "task_request_rejected") return `${copy.requestRejected}: ${title}`;
+  return title;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { locale, t } = useI18n();
+  const chatCopy = getChatCopy(locale);
   const screens = Grid.useBreakpoint();
   const isDesktop = Boolean(screens.lg);
   const taskRequestPresets = taskRequestPresetKeys.map((key) => t(key));
@@ -297,6 +394,17 @@ export default function Dashboard() {
   const [submissionPreviewTask, setSubmissionPreviewTask] = useState<TaskSubmissionPreviewState>(null);
   const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
   const [submissionPreviewUrl, setSubmissionPreviewUrl] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatStatus, setChatStatus] = useState<"idle" | "connecting" | "online" | "offline">("idle");
+  const [unreadState, setUnreadState] = useState<UnreadState | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const shouldReconnectRef = useRef(false);
+  const latestReadSentRef = useRef<string | null>(null);
+  const chatViewportRef = useRef<HTMLDivElement | null>(null);
+  const isChatActiveRef = useRef(false);
   const taskDeadlineValue = parseDeadlineValue(taskForm.deadline) ?? getDefaultDeadlineValue();
   const hourOptions = Array.from({ length: 24 }, (_, index) => {
     const value = String(index).padStart(2, "0");
@@ -326,6 +434,194 @@ export default function Dashboard() {
       URL.revokeObjectURL(objectUrl);
     };
   }, [taskSubmissionForm.media_file]);
+
+  function mergeIncomingMessage(message: ChatMessage) {
+    setChatMessages((current) => {
+      const index = current.findIndex((item) => item.id === message.id);
+      if (index >= 0) {
+        const next = [...current];
+        next[index] = { ...next[index], ...message, pending: false, failed: false };
+        return next;
+      }
+      const pendingIndex = message.client_msg_id
+        ? current.findIndex((item) => item.client_msg_id === message.client_msg_id && item.pending)
+        : -1;
+      if (pendingIndex >= 0) {
+        const next = [...current];
+        next[pendingIndex] = { ...message, pending: false, failed: false };
+        return next;
+      }
+      return [...current, message];
+    });
+  }
+
+  async function loadChatSnapshot(currentToken: string, relationshipId: string) {
+    const [messagesResponse, unreadResponse] = await Promise.all([
+      apiRequest(`/chat/messages?relationship_id=${encodeURIComponent(relationshipId)}&limit=50`, {
+        token: currentToken,
+      }) as Promise<{ messages?: ChatMessage[] }>,
+      apiRequest(`/chat/unread?relationship_id=${encodeURIComponent(relationshipId)}`, {
+        token: currentToken,
+      }) as Promise<UnreadState>,
+    ]);
+    setChatMessages(messagesResponse.messages || []);
+    setUnreadState(unreadResponse);
+  }
+
+  function clearReconnectTimer() {
+    if (reconnectTimerRef.current) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }
+
+  function closeChatSocket() {
+    clearReconnectTimer();
+    shouldReconnectRef.current = false;
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+  }
+
+  function sendReadUpdate(latestMessageId: string) {
+    if (!token || !relationship) {
+      return;
+    }
+    if (latestReadSentRef.current === latestMessageId) {
+      return;
+    }
+    latestReadSentRef.current = latestMessageId;
+    const socket = socketRef.current;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "chat.read.update", message_id: latestMessageId }));
+      return;
+    }
+    void apiRequest("/chat/read", {
+      method: "POST",
+      token,
+      body: {
+        relationship_id: relationship.relationship.id,
+        message_id: latestMessageId,
+      },
+    }).catch(() => {
+      latestReadSentRef.current = null;
+    });
+  }
+
+  function scheduleReconnect(currentToken: string, relationshipId: string) {
+    if (!shouldReconnectRef.current) {
+      return;
+    }
+    clearReconnectTimer();
+    const attempt = reconnectAttemptRef.current;
+    const delay = Math.min(1000 * 2 ** attempt, 15000);
+    reconnectTimerRef.current = window.setTimeout(() => {
+      connectChatSocket(currentToken, relationshipId);
+    }, delay);
+    reconnectAttemptRef.current += 1;
+  }
+
+  function connectChatSocket(currentToken: string, relationshipId: string) {
+    closeChatSocket();
+    shouldReconnectRef.current = true;
+    setChatStatus("connecting");
+    const ws = new WebSocket(
+      `${WS_BASE_URL}/ws/relationships/${encodeURIComponent(relationshipId)}?token=${encodeURIComponent(currentToken)}`
+    );
+    socketRef.current = ws;
+
+    ws.onopen = () => {
+      reconnectAttemptRef.current = 0;
+      setChatStatus("online");
+    };
+
+    ws.onmessage = (event) => {
+      let payload: unknown;
+      try {
+        payload = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (!payload || typeof payload !== "object") {
+        return;
+      }
+      const eventType = (payload as { type?: string }).type;
+      if (eventType === "chat.message.new") {
+        const incoming = (payload as { message?: ChatMessage }).message;
+        if (incoming) {
+          mergeIncomingMessage(incoming);
+          if (isChatActiveRef.current) {
+            sendReadUpdate(incoming.id);
+          }
+        }
+        return;
+      }
+      if (eventType === "chat.message.ack") {
+        const ack = payload as { client_msg_id?: string; message_id?: string; created_at?: string };
+        if (!ack.client_msg_id || !ack.message_id) {
+          return;
+        }
+        setChatMessages((current) =>
+          current.map((message) =>
+            message.client_msg_id === ack.client_msg_id
+              ? {
+                  ...message,
+                  id: ack.message_id || message.id,
+                  created_at: ack.created_at || message.created_at,
+                  pending: false,
+                  failed: false,
+                }
+              : message
+          )
+        );
+        return;
+      }
+      if (eventType === "chat.unread.count") {
+        const unreadPayload = payload as { unread_count?: number; relationship_id?: string };
+        setUnreadState((current) => ({
+          relationship_id: unreadPayload.relationship_id || current?.relationship_id || relationshipId,
+          last_read_message_id: current?.last_read_message_id || null,
+          last_read_at: current?.last_read_at || null,
+          unread_count: Number(unreadPayload.unread_count || 0),
+        }));
+        return;
+      }
+      if (eventType === "chat.read.updated") {
+        const readPayload = payload as { user_id?: string; last_read_message_id?: string; last_read_at?: string };
+        if (readPayload.user_id === me?.user.id) {
+          setUnreadState((current) =>
+            current
+              ? {
+                  ...current,
+                  last_read_message_id: readPayload.last_read_message_id || current.last_read_message_id,
+                  last_read_at: readPayload.last_read_at || current.last_read_at,
+                  unread_count: 0,
+                }
+              : current
+          );
+        }
+        return;
+      }
+      if (eventType === "error") {
+        const detail = (payload as { detail?: string }).detail;
+        if (detail) {
+          setNotice(detail);
+        }
+      }
+    };
+
+    ws.onclose = () => {
+      setChatStatus("offline");
+      if (shouldReconnectRef.current) {
+        scheduleReconnect(currentToken, relationshipId);
+      }
+    };
+
+    ws.onerror = () => {
+      setChatStatus("offline");
+    };
+  }
 
   async function loadDashboard(currentToken: string) {
     const meResponse = (await apiRequest("/me", { token: currentToken })) as MeResponse;
@@ -401,7 +697,69 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(() => {
+    isChatActiveRef.current = Boolean(
+      relationship && (isDesktop || activeSection === "chat")
+    );
+    if (!isChatActiveRef.current) {
+      return;
+    }
+    const latestMessage = [...chatMessages].reverse().find((item) => !item.pending);
+    if (latestMessage) {
+      sendReadUpdate(latestMessage.id);
+    }
+  }, [activeSection, chatMessages, isDesktop, relationship]);
+
+  useEffect(() => {
+    if (isDesktop && activeSection === "chat") {
+      setActiveSection("overview");
+    }
+  }, [activeSection, isDesktop]);
+
+  useEffect(() => {
+    const viewport = chatViewportRef.current;
+    if (!viewport || !isChatActiveRef.current) {
+      return;
+    }
+    viewport.scrollTop = viewport.scrollHeight;
+  }, [chatMessages, activeSection, isDesktop]);
+
+  useEffect(() => {
+    if (!token || !relationship) {
+      closeChatSocket();
+      setChatMessages([]);
+      setUnreadState(null);
+      setChatStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    const relationshipId = relationship.relationship.id;
+    latestReadSentRef.current = null;
+
+    async function bootstrapChat() {
+      try {
+        await loadChatSnapshot(token, relationshipId);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        const message = err instanceof Error ? err.message : t("common.request_failed");
+        setNotice(translateApiError(message, t));
+      }
+      if (!cancelled) {
+        connectChatSocket(token, relationshipId);
+      }
+    }
+
+    void bootstrapChat();
+    return () => {
+      cancelled = true;
+      closeChatSocket();
+    };
+  }, [relationship?.relationship.id, token, t]);
+
   function logout() {
+    closeChatSocket();
     window.localStorage.removeItem(TOKEN_KEY);
     window.sessionStorage.removeItem(SKIP_BIND_KEY);
     setSkipBind(false);
@@ -619,6 +977,118 @@ export default function Dashboard() {
     }
   }
 
+  function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text || !relationship || !me) {
+      return;
+    }
+    const clientMsgId = createClientMessageId();
+    const optimisticMessage: ChatMessage = {
+      id: `pending-${clientMsgId}`,
+      relationship_id: relationship.relationship.id,
+      sender_id: me.user.id,
+      kind: "text",
+      content: { text },
+      created_at: new Date().toISOString(),
+      client_msg_id: clientMsgId,
+      pending: true,
+      failed: false,
+    };
+    setChatMessages((current) => [...current, optimisticMessage]);
+    setChatInput("");
+
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      setChatMessages((current) =>
+        current.map((item) =>
+          item.client_msg_id === clientMsgId ? { ...item, pending: false, failed: true } : item
+        )
+      );
+      setChatStatus("offline");
+      return;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: "chat.message.send",
+        text,
+        client_msg_id: clientMsgId,
+      })
+    );
+  }
+
+  function retryChatMessage(message: ChatMessage) {
+    if (!message.failed || !message.content.text) {
+      return;
+    }
+    setChatMessages((current) => current.filter((item) => item.id !== message.id));
+    setChatInput(message.content.text);
+  }
+
+  function renderChatMessageItem(message: ChatMessage) {
+    const mine = me?.user.id && message.sender_id === me.user.id;
+    if (message.kind === "system_task") {
+      return (
+        <div key={message.id} className="dashboard-chat-message system">
+          <Text>{getSystemTaskText(message, locale)}</Text>
+          <Text type="secondary" className="dashboard-chat-time">{formatDateTime(message.created_at, locale)}</Text>
+        </div>
+      );
+    }
+    return (
+      <div key={message.id} className={`dashboard-chat-message ${mine ? "mine" : "peer"}`}>
+        <Text>{message.content.text}</Text>
+        <div className="dashboard-chat-meta">
+          <Text type="secondary" className="dashboard-chat-time">{formatDateTime(message.created_at, locale)}</Text>
+          {message.pending ? <Text type="secondary">{chatCopy.sending}</Text> : null}
+          {message.failed ? (
+            <Button type="link" size="small" onClick={() => retryChatMessage(message)}>
+              {chatCopy.retry}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const renderChatPanel = () => (
+    <Card className="dashboard-chat-card">
+      <div className="dashboard-chat-head">
+        <div>
+          <Title level={4}>{chatCopy.title}</Title>
+          <Text type="secondary">
+            {chatStatus === "online" ? chatCopy.online : chatStatus === "connecting" ? chatCopy.connecting : chatCopy.offline}
+          </Text>
+        </div>
+        <Badge count={unreadState?.unread_count || 0} />
+      </div>
+      <div className="dashboard-chat-viewport" ref={chatViewportRef}>
+        {chatMessages.length ? (
+          chatMessages.map((message) => renderChatMessageItem(message))
+        ) : (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={chatCopy.empty} />
+        )}
+      </div>
+      <div className="dashboard-chat-compose">
+        <Input.TextArea
+          value={chatInput}
+          onChange={(event) => setChatInput(event.target.value)}
+          placeholder={chatCopy.placeholder}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          onPressEnter={(event) => {
+            if (!event.shiftKey) {
+              event.preventDefault();
+              sendChatMessage();
+            }
+          }}
+        />
+        <Button type="primary" icon={<SendOutlined />} onClick={sendChatMessage} disabled={!chatInput.trim()}>
+          {chatCopy.send}
+        </Button>
+      </div>
+    </Card>
+  );
+
   function startFulfillingTaskRequest(taskRequest: TaskRequest) {
     setSelectedTaskRequestId(taskRequest.id);
     setTaskForm({
@@ -656,11 +1126,13 @@ export default function Dashboard() {
   const submittedTasks = tasks.filter((task) => task.status === "submitted").length;
   const approvedTasks = tasks.filter((task) => task.status === "approved").length;
   const pendingRequests = taskRequests.filter((item) => item.status === "pending").length;
+  const unreadCount = unreadState?.unread_count || 0;
 
   const navItems: { key: DashboardSection; label: string; count?: number; icon: ReactNode }[] = [
     { key: "overview", label: t("dashboard.nav.overview"), icon: <AppstoreOutlined /> },
     { key: "tasks", label: t("dashboard.nav.tasks"), count: openTasks, icon: <OrderedListOutlined /> },
     { key: "requests", label: t("dashboard.nav.requests"), count: pendingRequests, icon: <ClockCircleOutlined /> },
+    { key: "chat", label: chatCopy.title, count: unreadCount, icon: <MessageOutlined /> },
     { key: "profile", label: t("dashboard.nav.profile"), icon: <UserOutlined /> },
   ];
 
@@ -668,6 +1140,7 @@ export default function Dashboard() {
     overview: t("dashboard.section.overview_hint"),
     tasks: t("dashboard.section.tasks_hint"),
     requests: t("dashboard.section.requests_hint"),
+    chat: chatCopy.sectionHint,
     profile: t("dashboard.section.profile_hint"),
   };
 
@@ -675,6 +1148,7 @@ export default function Dashboard() {
     overview: t("dashboard.nav.overview"),
     tasks: t("dashboard.nav.tasks"),
     requests: t("dashboard.nav.requests"),
+    chat: chatCopy.title,
     profile: t("dashboard.nav.profile"),
   };
 
@@ -688,6 +1162,8 @@ export default function Dashboard() {
       </span>
     ),
   }));
+  const visibleNavItems = isDesktop ? navItems.filter((item) => item.key !== "chat") : navItems;
+  const visibleMenuItems = isDesktop ? menuItems.filter((item) => item.key !== "chat") : menuItems;
 
   const renderOverviewSection = () => (
     <div className="dashboard-section-stack">
@@ -888,6 +1364,9 @@ export default function Dashboard() {
     if (activeSection === "requests") {
       return renderRequestsSection();
     }
+    if (activeSection === "chat") {
+      return renderChatPanel();
+    }
     if (activeSection === "profile") {
       return renderProfileSection();
     }
@@ -895,13 +1374,16 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="dashboard-page-shell">
+    <div
+      className={`dashboard-page-shell ${me.user.role_preference === "owner" ? "theme-owner" : "theme-puppy"}`}
+      data-role={me.user.role_preference}
+    >
       <header className="dashboard-topbar">
-        <div>
+        <div className="dashboard-topbar-title">
           <Title level={2}>{t("dashboard.title")}</Title>
           <Text type="secondary">{me.user.email}</Text>
         </div>
-        <Space wrap>
+        <Space wrap className="dashboard-topbar-actions">
           <LanguageSwitcher id="dashboard-language" />
           <Button icon={<ReloadOutlined />} onClick={() => void refreshData()}>{t("common.refresh")}</Button>
           <Button icon={<LogoutOutlined />} onClick={logout}>{t("common.logout")}</Button>
@@ -936,44 +1418,49 @@ export default function Dashboard() {
                     <Title level={4}>{relationship.counterpart.display_name}</Title>
                     <Text type="secondary">{sectionHints[activeSection]}</Text>
                   </div>
-                  <Menu mode="inline" selectedKeys={[activeSection]} items={menuItems} onClick={({ key }) => setActiveSection(key as DashboardSection)} className="dashboard-menu" />
+                  <Menu mode="inline" selectedKeys={[activeSection]} items={visibleMenuItems} onClick={({ key }) => setActiveSection(key as DashboardSection)} className="dashboard-menu" />
                 </Card>
               </Sider>
             ) : null}
             <Content className="dashboard-content">
-              <div className="dashboard-section-head">
-                <div>
-                  <Title level={3}>{sectionTitles[activeSection]}</Title>
-                  <Text type="secondary">{sectionHints[activeSection]}</Text>
+              <div className={`dashboard-main-grid${isDesktop ? " with-chat" : ""}`}>
+                <div className="dashboard-main-column">
+                  <div className="dashboard-section-head">
+                    <div>
+                      <Title level={3}>{sectionTitles[activeSection]}</Title>
+                      <Text type="secondary">{sectionHints[activeSection]}</Text>
+                    </div>
+                    {activeSection === "overview" && (canCreateTask || isPuppy) ? (
+                      <Space wrap className="dashboard-quick-action-wrap">
+                        {canCreateTask ? (
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setShowCreateModal(true)}
+                            className="dashboard-quick-action is-owner"
+                            size="large"
+                          >
+                            {t("dashboard.create_task")}
+                          </Button>
+                        ) : null}
+                        {isPuppy ? (
+                          <Button
+                            type="primary"
+                            icon={<SendOutlined />}
+                            onClick={() => setShowTaskRequestModal(true)}
+                            className="dashboard-quick-action is-puppy"
+                            size="large"
+                          >
+                            {t("dashboard.request_task")}
+                          </Button>
+                        ) : null}
+                      </Space>
+                    ) : null}
+                  </div>
+                  {renderSectionContent()}
                 </div>
-                {activeSection === "overview" && (canCreateTask || isPuppy) ? (
-                  <Space wrap className="dashboard-quick-action-wrap">
-                    {canCreateTask ? (
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setShowCreateModal(true)}
-                        className="dashboard-quick-action is-owner"
-                        size="large"
-                      >
-                        {t("dashboard.create_task")}
-                      </Button>
-                    ) : null}
-                    {isPuppy ? (
-                      <Button
-                        type="primary"
-                        icon={<SendOutlined />}
-                        onClick={() => setShowTaskRequestModal(true)}
-                        className="dashboard-quick-action is-puppy"
-                        size="large"
-                      >
-                        {t("dashboard.request_task")}
-                      </Button>
-                    ) : null}
-                  </Space>
-                ) : null}
+                {isDesktop ? <aside className="dashboard-chat-sidebar">{renderChatPanel()}</aside> : null}
               </div>
-              {renderSectionContent()}
             </Content>
           </Layout>
 
@@ -981,7 +1468,7 @@ export default function Dashboard() {
             <>
               <div className="dashboard-mobile-nav-spacer" aria-hidden="true" />
               <nav className="dashboard-mobile-nav" aria-label={t("common.app_name")}>
-                {navItems.map((item) => (
+                {visibleNavItems.map((item) => (
                   <button key={item.key} type="button" className={`dashboard-mobile-nav-item${activeSection === item.key ? " is-active" : ""}`} onClick={() => setActiveSection(item.key)}>
                     <span className="dashboard-mobile-nav-icon">{item.count ? <Badge count={item.count}>{item.icon}</Badge> : item.icon}</span>
                     <span className="dashboard-mobile-nav-text">{item.label}</span>
@@ -1002,7 +1489,7 @@ export default function Dashboard() {
             <TextArea rows={4} value={taskForm.description} placeholder={t("dashboard.task_description_placeholder")} onChange={(event) => setTaskForm((current) => ({ ...current, description: event.target.value }))} />
           </Form.Item>
           <Form.Item>
-            <Text type="secondary">Approved tasks grant 1 coin to both owner and puppy, up to 5 per day.</Text>
+            <Text type="secondary">{t("dashboard.reward_rule_hint")}</Text>
           </Form.Item>
           <div className="dashboard-modal-grid">
             <Form.Item label={t("dashboard.deadline")}>
@@ -1136,7 +1623,7 @@ export default function Dashboard() {
             </div>
             {submissionPreviewTask.submission_submitted_at ? (
               <div className="dashboard-submission-preview-card">
-                <Text type="secondary">Submitted at</Text>
+                <Text type="secondary">{t("dashboard.submitted_at")}</Text>
                 <Text strong>{formatDateTime(submissionPreviewTask.submission_submitted_at, locale)}</Text>
               </div>
             ) : null}

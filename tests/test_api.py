@@ -22,10 +22,12 @@ class PuppyApiTests(unittest.TestCase):
         database.init_db()
 
         from app.routes.auth import login, register
+        from app.routes.chat import get_chat_messages, get_chat_unread, mark_chat_read
         from app.routes.relationships import bind_by_invite
         from app.routes.task_requests import create_task_request, list_task_requests, reject_task_request
         from app.routes.tasks import approve_task, create_task, submit_task
         from app.schemas import (
+            ChatReadRequest,
             CreateTaskRequestRequest,
             BindByInviteRequest,
             CreateTaskRequest,
@@ -37,6 +39,9 @@ class PuppyApiTests(unittest.TestCase):
 
         self.approve_task = approve_task
         self.bind_by_invite = bind_by_invite
+        self.get_chat_messages = get_chat_messages
+        self.get_chat_unread = get_chat_unread
+        self.mark_chat_read = mark_chat_read
         self.create_task_request_endpoint = create_task_request
         self.create_task = create_task
         self.list_task_requests = list_task_requests
@@ -45,6 +50,7 @@ class PuppyApiTests(unittest.TestCase):
         self.register_endpoint = register
         self.submit_task = submit_task
         self.BindByInviteRequest = BindByInviteRequest
+        self.ChatReadRequest = ChatReadRequest
         self.CreateTaskRequest = CreateTaskRequest
         self.CreateTaskRequestRequest = CreateTaskRequestRequest
         self.LoginRequest = LoginRequest
@@ -369,6 +375,41 @@ class PuppyApiTests(unittest.TestCase):
             self.assertEqual(row["role_preference"], "puppy")
         finally:
             migrated.close()
+
+    def test_chat_message_history_and_unread_flow(self) -> None:
+        owner, puppy, relationship_id = self.bind_active_relationship()
+        self.create_task(
+            self.CreateTaskRequest(
+                relationship_id=relationship_id,
+                title="System message task",
+                description="Generate system task message",
+                deadline=None,
+            ),
+            current_user=owner["user"],
+        )
+
+        messages_result = self.get_chat_messages(relationship_id=relationship_id, current_user=owner["user"])
+        self.assertGreaterEqual(len(messages_result["messages"]), 1)
+        latest = messages_result["messages"][-1]
+        self.assertEqual(latest["kind"], "system_task")
+        self.assertEqual(latest["content"]["action"], "task_created")
+
+        unread_before = self.get_chat_unread(relationship_id=relationship_id, current_user=puppy["user"])
+        self.assertGreaterEqual(unread_before["unread_count"], 1)
+
+        self.mark_chat_read(
+            self.ChatReadRequest(relationship_id=relationship_id, message_id=latest["id"]),
+            current_user=puppy["user"],
+        )
+        unread_after = self.get_chat_unread(relationship_id=relationship_id, current_user=puppy["user"])
+        self.assertEqual(unread_after["unread_count"], 0)
+
+    def test_chat_requires_relationship_membership(self) -> None:
+        owner, _, relationship_id = self.bind_active_relationship()
+        outsider = self.register("outsider@example.com", "owner")
+        with self.assertRaises(Exception) as context:
+            self.get_chat_messages(relationship_id=relationship_id, current_user=outsider["user"])
+        self.assertEqual(getattr(context.exception, "detail", None), "User is not part of this relationship.")
 
 
 if __name__ == "__main__":

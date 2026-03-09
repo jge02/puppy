@@ -179,15 +179,16 @@ export default function BindPanel({ source }: BindPanelProps) {
   const isOwner = me.user.role_preference === "owner";
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="bind-page">
       <header
+        className="bind-header"
         style={{
           padding: "var(--space-6)",
           backgroundColor: "var(--surface-strong)",
           borderBottom: "1px solid var(--line)",
         }}
       >
-        <div className="container dashboard-topbar wrap-on-mobile">
+        <div className="container bind-header-bar wrap-on-mobile">
           <div>
             <h1 style={{ margin: 0, fontSize: "var(--text-2xl)" }}>{t("bind.title")}</h1>
             <p style={{ margin: "var(--space-2) 0 0 0", color: "var(--muted)" }}>{t("bind.description")}</p>
@@ -196,7 +197,7 @@ export default function BindPanel({ source }: BindPanelProps) {
         </div>
       </header>
 
-      <main className="container" style={{ flex: 1 }}>
+      <main className="container bind-main">
         {sourceCopy ? (
           <Card style={{ marginBottom: "var(--space-6)" }}>
             <p className="bind-source">{sourceCopy}</p>

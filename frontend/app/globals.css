@@ -1,33 +1,33 @@
 :root {
   /* 背景和表面 */
-  --bg: #f2ede2;
-  --bg-accent: #dcefe2;
-  --surface: rgba(255, 251, 243, 0.95);
-  --surface-strong: #fffaf0;
+  --bg: #f7f1ea;
+  --bg-accent: #ead9cd;
+  --surface: rgba(255, 250, 244, 0.94);
+  --surface-strong: #fff8f2;
   
   /* 文本颜色 */
-  --ink: #1e231f;
-  --muted: #607164;
-  --line: rgba(30, 35, 31, 0.12);
+  --ink: #261a16;
+  --muted: #6f5a50;
+  --line: rgba(38, 26, 22, 0.14);
   
   /* 主品牌色（各角色通用） */
-  --brand: #c96031;
-  --brand-dark: #8e3a18;
-  --brand-light: #d97d46;
+  --brand: #b74b28;
+  --brand-dark: #471d13;
+  --brand-light: #d3754b;
   
   /* 主人配色（深色、金色调） */
-  --owner-base: #8e3a18;
-  --owner-light: #d97d46;
-  --owner-accent: #c96031;
-  --owner-hover: #7a3215;
-  --owner-bg: rgba(201, 96, 49, 0.08);
+  --owner-base: #471d13;
+  --owner-light: #8f4e39;
+  --owner-accent: #b74b28;
+  --owner-hover: #2d120c;
+  --owner-bg: rgba(71, 29, 19, 0.08);
   
   /* 仆人配色（柔和、紫蓝调） */
-  --puppy-base: #5b6b8f;
-  --puppy-light: #7b8fb5;
-  --puppy-accent: #6b7fa8;
-  --puppy-hover: #4a5578;
-  --puppy-bg: rgba(91, 107, 143, 0.08);
+  --puppy-base: #485c7a;
+  --puppy-light: #7187a7;
+  --puppy-accent: #5f7495;
+  --puppy-hover: #2f425b;
+  --puppy-bg: rgba(72, 92, 122, 0.08);
   
   /* 状态颜色 */
   --ok: #5b8c6f;
@@ -197,13 +197,21 @@ body {
 }
 
 body {
-  font-family: "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  font-family: "Noto Sans SC", "PingFang SC", "Segoe UI", sans-serif;
   color: var(--ink);
   overflow-wrap: anywhere;
   background:
-    radial-gradient(circle at top left, rgba(201, 96, 49, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(91, 140, 111, 0.14), transparent 28%),
-    linear-gradient(135deg, var(--bg), var(--bg-accent));
+    radial-gradient(circle at 8% 0%, rgba(183, 75, 40, 0.2), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(72, 92, 122, 0.16), transparent 40%),
+    linear-gradient(140deg, var(--bg), var(--bg-accent));
+}
+
+.app-root-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 button,
@@ -759,6 +767,13 @@ textarea {
 
   .modal-footer {
     gap: var(--space-2);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 

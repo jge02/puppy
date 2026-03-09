@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 
 from app.database import BASE_DIR, get_connection, transactional_connection
 from app.dependencies import get_current_user
+from app.realtime import publish_system_task_message_sync
 from app.schemas import CreateTaskRequest, RejectTaskRequest
 from app.services import (
     ensure_relationship_member,
@@ -143,7 +144,15 @@ def create_task(payload: CreateTaskRequest, current_user: dict[str, Any] = Depen
             if updated_request.rowcount != 1:
                 raise HTTPException(status_code=409, detail="Task request update conflict.")
         task = connection.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
-        return {"task": row_to_dict(task)}
+        result = {"task": row_to_dict(task)}
+    publish_system_task_message_sync(
+        relationship_id=relationship["id"],
+        action="task_created",
+        task_id=task_id,
+        title=payload.title,
+        actor_id=current_user["id"],
+    )
+    return result
 
 
 @router.get("/tasks")
@@ -258,7 +267,15 @@ def submit_task(
         connection.execute("UPDATE tasks SET status = 'submitted' WHERE id = ?", (task_id,))
         task["status"] = "submitted"
         submission = row_to_dict(connection.execute("SELECT * FROM task_submissions WHERE task_id = ?", (task_id,)).fetchone())
-        return {"task": task, "submission": submission}
+        result = {"task": task, "submission": submission}
+    publish_system_task_message_sync(
+        relationship_id=task["relationship_id"],
+        action="task_submitted",
+        task_id=task_id,
+        title=task["title"],
+        actor_id=current_user["id"],
+    )
+    return result
 
 
 @router.post("/tasks/{task_id}/approve")
@@ -299,7 +316,15 @@ def approve_task(task_id: str, current_user: dict[str, Any] = Depends(get_curren
         task["approved_at"] = now
         task["reward_granted"] = reward_granted
         wallet = get_wallet(connection, task["owner_id"])
-        return {"task": task, "wallet": wallet}
+        result = {"task": task, "wallet": wallet}
+    publish_system_task_message_sync(
+        relationship_id=task["relationship_id"],
+        action="task_approved",
+        task_id=task_id,
+        title=task["title"],
+        actor_id=current_user["id"],
+    )
+    return result
 
 
 @router.post("/tasks/{task_id}/reject")
@@ -317,7 +342,15 @@ def reject_task(
             raise HTTPException(status_code=400, detail="Only submitted tasks can be rejected.")
         connection.execute("UPDATE tasks SET status = 'rejected' WHERE id = ?", (task_id,))
         task["status"] = "rejected"
-        return {"task": task}
+        result = {"task": task}
+    publish_system_task_message_sync(
+        relationship_id=task["relationship_id"],
+        action="task_rejected",
+        task_id=task_id,
+        title=task["title"],
+        actor_id=current_user["id"],
+    )
+    return result
 
 
 @router.get("/wallet")

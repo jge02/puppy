@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 type RootLayoutProps = {
@@ -25,9 +26,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="zh-CN" style={{ colorScheme: "light" }}>
       <head>
         <meta name="description" content="A smooth and cute UI experience" />
-        <meta name="theme-color" content="#c96031" />
+        <meta name="theme-color" content="#471d13" />
       </head>
-      <body style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <body className="app-root-body">
         <I18nProvider>
           <AntdAppProvider>{children}</AntdAppProvider>
         </I18nProvider>

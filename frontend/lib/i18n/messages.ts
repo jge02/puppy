@@ -3,6 +3,11 @@ import type { Locale } from "./config";
 export type MessageKey =
   | "common.app_name"
   | "common.request_failed"
+  | "common.error_occurred"
+  | "common.error_email_registered"
+  | "common.error_invalid_credentials"
+  | "common.error_invite_code_not_found"
+  | "common.error_invite_code_self"
   | "common.loading"
   | "common.loading_dashboard"
   | "common.retry"
@@ -156,13 +161,20 @@ export type MessageKey =
   | "dashboard.section.overview_hint"
   | "dashboard.section.tasks_hint"
   | "dashboard.section.requests_hint"
-  | "dashboard.section.profile_hint";
+  | "dashboard.section.profile_hint"
+  | "dashboard.reward_rule_hint"
+  | "dashboard.submitted_at";
 
 export type Messages = Record<MessageKey, string>;
 
 const enMessages: Messages = {
   "common.app_name": "Puppy",
   "common.request_failed": "Request failed",
+  "common.error_occurred": "Something went wrong. Please try again.",
+  "common.error_email_registered": "This email is already registered. Please log in or use another email.",
+  "common.error_invalid_credentials": "Email or password is incorrect.",
+  "common.error_invite_code_not_found": "Invite code not found. Please check and try again.",
+  "common.error_invite_code_self": "You cannot use your own invite code.",
   "common.loading": "Loading...",
   "common.loading_dashboard": "Loading dashboard...",
   "common.retry": "Retry",
@@ -317,12 +329,19 @@ const enMessages: Messages = {
   "dashboard.section.tasks_hint": "Review tasks, rewards, and the next action that needs attention.",
   "dashboard.section.requests_hint": "Track asks, replies, and pending request decisions.",
   "dashboard.section.profile_hint": "Check your account identity, role, and session actions.",
+  "dashboard.reward_rule_hint": "Approved tasks grant 1 coin to both owner and puppy, up to 5 per day.",
+  "dashboard.submitted_at": "Submitted at",
 };
 
 const zhCNMessages: Messages = {
   ...enMessages,
   "common.app_name": "Puppy",
   "common.request_failed": "请求失败",
+  "common.error_occurred": "出错了，请稍后再试。",
+  "common.error_email_registered": "该邮箱已注册，请直接登录或更换邮箱。",
+  "common.error_invalid_credentials": "邮箱或密码不正确。",
+  "common.error_invite_code_not_found": "邀请码不存在，请检查后重试。",
+  "common.error_invite_code_self": "不能使用自己的邀请码。",
   "common.loading": "加载中...",
   "common.loading_dashboard": "正在加载仪表盘...",
   "common.retry": "重试",
@@ -467,11 +486,24 @@ const zhCNMessages: Messages = {
   "bind.enter_counterpart_code": "\u8f93\u5165\u5bf9\u65b9\u7684\u4e13\u5c5e\u9080\u8bf7\u7801",
   "bind.counterpart_code_hint": "\u4e3b\u4eba\u548c\u5c0f\u72d7\u90fd\u53ef\u4ee5\u8f93\u5165\u5bf9\u65b9\u7684\u9080\u8bf7\u7801\u6765\u5b8c\u6210\u5339\u914d\u3002",
   "bind.puppy_waiting_hint": "\u8bf7\u627e\u4e3b\u4eba\u5e2e\u4f60\u5e26\u4e0a\u9879\u5708",
+  "dashboard.task_submission_requirement": "\u63d0\u4ea4\u51ed\u8bc1",
+  "dashboard.task_submission_type.note": "\u6587\u5b57\u8bf4\u660e",
+  "dashboard.task_submission_type.image": "\u56fe\u7247",
+  "dashboard.task_submission_type.video": "\u89c6\u9891",
+  "dashboard.submit_task_modal": "\u63d0\u4ea4\u4efb\u52a1",
+  "dashboard.task_submission_note_placeholder": "\u53ef\u9009\uff1a\u7ed9\u4e3b\u4eba\u7684\u5907\u6ce8",
+  "dashboard.reward_rule_hint": "\u4efb\u52a1\u901a\u8fc7\u540e\uff0c\u4e3b\u4eba\u548c\u5c0f\u72d7\u5404\u83b7\u5f971\u679a\u94f6\u5e01\uff0c\u6bcf\u5929\u6700\u591a5\u6b21\u3002",
+  "dashboard.submitted_at": "\u63d0\u4ea4\u65f6\u95f4",
 };
 
 const zhTWMessages: Messages = {
   ...zhCNMessages,
   "common.request_failed": "請求失敗",
+  "common.error_occurred": "出錯了，請稍後再試。",
+  "common.error_email_registered": "該郵箱已註冊，請直接登入或更換郵箱。",
+  "common.error_invalid_credentials": "郵箱或密碼不正確。",
+  "common.error_invite_code_not_found": "找不到邀請碼，請檢查後再試。",
+  "common.error_invite_code_self": "不能使用自己的邀請碼。",
   "common.loading": "載入中...",
   "common.loading_dashboard": "正在載入儀表板...",
   "common.retry": "重試",
@@ -602,11 +634,24 @@ const zhTWMessages: Messages = {
   "bind.enter_counterpart_code": "\u8f38\u5165\u5c0d\u65b9\u7684\u5c08\u5c6c\u9080\u8acb\u78bc",
   "bind.counterpart_code_hint": "\u4e3b\u4eba\u548c\u5c0f\u72d7\u90fd\u53ef\u4ee5\u8f38\u5165\u5c0d\u65b9\u7684\u9080\u8acb\u78bc\u4f86\u5b8c\u6210\u914d\u5c0d\u3002",
   "bind.puppy_waiting_hint": "\u8acb\u627e\u4e3b\u4eba\u5e6b\u4f60\u6234\u4e0a\u9805\u5708",
+  "dashboard.task_submission_requirement": "\u63d0\u4ea4\u61d1\u8b49",
+  "dashboard.task_submission_type.note": "\u6587\u5b57\u8aaa\u660e",
+  "dashboard.task_submission_type.image": "\u5716\u7247",
+  "dashboard.task_submission_type.video": "\u5f71\u7247",
+  "dashboard.submit_task_modal": "\u63d0\u4ea4\u4efb\u52d9",
+  "dashboard.task_submission_note_placeholder": "\u53ef\u9078\uff1a\u7d66\u4e3b\u4eba\u7684\u5099\u8a3b",
+  "dashboard.reward_rule_hint": "\u4efb\u52d9\u901a\u904e\u5f8c\uff0c\u4e3b\u4eba\u8207\u5c0f\u72d7\u5404\u7372\u5f971\u679a\u786c\u5e63\uff0c\u6bcf\u65e5\u6700\u591a5\u6b21\u3002",
+  "dashboard.submitted_at": "\u63d0\u4ea4\u6642\u9593",
 };
 
 const frMessages: Messages = {
   ...enMessages,
   "common.request_failed": "Echec de la requete",
+  "common.error_occurred": "Une erreur est survenue. Veuillez reessayer.",
+  "common.error_email_registered": "Cet e-mail est deja enregistre. Connectez-vous ou utilisez un autre e-mail.",
+  "common.error_invalid_credentials": "E-mail ou mot de passe incorrect.",
+  "common.error_invite_code_not_found": "Code d'invitation introuvable. Verifiez et reessayez.",
+  "common.error_invite_code_self": "Vous ne pouvez pas utiliser votre propre code d'invitation.",
   "common.loading": "Chargement...",
   "common.loading_dashboard": "Chargement du tableau de bord...",
   "common.retry": "Reessayer",

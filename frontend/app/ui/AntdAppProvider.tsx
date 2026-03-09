@@ -29,35 +29,72 @@ export function AntdAppProvider({ children }: AntdAppProviderProps) {
       locale={antdLocales[locale]}
       theme={{
         token: {
-          colorPrimary: "#c96031",
-          colorBgLayout: "#f2ede2",
-          colorBgContainer: "#fffaf0",
-          colorBorderSecondary: "rgba(30, 35, 31, 0.12)",
-          colorText: "#1e231f",
-          colorTextSecondary: "#607164",
+          colorPrimary: "#b74b28",
+          colorBgLayout: "#f7f1ea",
+          colorBgContainer: "#fff8f2",
+          colorBgElevated: "#fff6ef",
+          colorBorder: "rgba(38, 26, 22, 0.14)",
+          colorBorderSecondary: "rgba(38, 26, 22, 0.14)",
+          colorText: "#261a16",
+          colorTextSecondary: "#6f5a50",
+          colorTextTertiary: "#887267",
+          colorTextPlaceholder: "#9a857a",
+          colorFillSecondary: "rgba(71, 29, 19, 0.04)",
+          colorLink: "#8f3a22",
+          colorLinkHover: "#b74b28",
           borderRadius: 16,
-          fontFamily: '"Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif',
+          fontFamily: '"DM Sans", "Noto Sans SC", "PingFang SC", "Segoe UI", sans-serif',
         },
         components: {
           Button: {
-            controlHeight: 44,
+            controlHeight: 46,
             borderRadius: 12,
+            fontWeight: 600,
           },
           Card: {
             borderRadiusLG: 16,
+            boxShadow: "0 10px 26px rgba(38, 26, 22, 0.1)",
           },
           Layout: {
             siderBg: "rgba(255, 250, 240, 0.92)",
             bodyBg: "transparent",
-            headerBg: "#fffaf0",
+            headerBg: "#fff8f2",
           },
           Menu: {
             itemBorderRadius: 12,
             itemBg: "transparent",
-            itemColor: "#607164",
-            itemSelectedBg: "rgba(201, 96, 49, 0.12)",
-            itemSelectedColor: "#8e3a18",
-            itemHoverColor: "#1e231f",
+            itemColor: "#6f5a50",
+            itemSelectedBg: "rgba(183, 75, 40, 0.12)",
+            itemSelectedColor: "#471d13",
+            itemHoverColor: "#261a16",
+            itemHoverBg: "rgba(71, 29, 19, 0.05)",
+          },
+          Input: {
+            borderRadius: 12,
+            activeBorderColor: "#8f3a22",
+            hoverBorderColor: "#b74b28",
+            activeShadow: "0 0 0 3px rgba(183, 75, 40, 0.12)",
+          },
+          Select: {
+            borderRadius: 12,
+            optionSelectedBg: "rgba(183, 75, 40, 0.12)",
+            optionActiveBg: "rgba(71, 29, 19, 0.06)",
+          },
+          Modal: {
+            borderRadiusLG: 18,
+          },
+          Tag: {
+            borderRadiusSM: 8,
+            fontSizeSM: 11,
+          },
+          Badge: {
+            colorError: "#b74b28",
+          },
+          Alert: {
+            borderRadiusLG: 12,
+          },
+          Statistic: {
+            titleFontSize: 12,
           },
         },
       }}

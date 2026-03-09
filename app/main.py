@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,7 +8,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.database import init_db
+from app.realtime import chat_manager
 from app.routes.auth import router as auth_router
+from app.routes.chat import router as chat_router
 from app.routes.relationships import router as relationships_router
 from app.routes.task_requests import router as task_requests_router
 from app.routes.tasks import router as tasks_router
@@ -20,6 +23,7 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    chat_manager.bind_loop(asyncio.get_running_loop())
     (UPLOADS_DIR / "task-submissions").mkdir(parents=True, exist_ok=True)
     yield
 
@@ -45,3 +49,4 @@ app.include_router(auth_router)
 app.include_router(relationships_router)
 app.include_router(task_requests_router)
 app.include_router(tasks_router)
+app.include_router(chat_router)
