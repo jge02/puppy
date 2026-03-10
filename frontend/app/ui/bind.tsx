@@ -42,6 +42,7 @@ type MatchPost = {
   user_id: string;
   role_preference: "owner" | "puppy";
   intro: string;
+  image_url?: string | null;
   status: "active" | "closed" | "matched";
   created_at: string;
   display_name?: string;
@@ -95,7 +96,8 @@ async function apiRequest(
   }: { method?: string; body?: unknown; token?: string } = {}
 ) {
   const headers: Record<string, string> = {};
-  if (body !== undefined) {
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
   if (token) {
@@ -111,7 +113,7 @@ async function apiRequest(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     cache: "no-store",
   });
 
@@ -189,6 +191,13 @@ function getInitialLetter(value: string | undefined) {
   return candidate ? candidate.slice(0, 1).toUpperCase() : "?";
 }
 
+function toAssetUrl(url: string) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  return `${API_BASE_URL}${url}`;
+}
+
 type BindPanelProps = {
   source?: string;
   tab?: string;
@@ -209,6 +218,8 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   const [showComposer, setShowComposer] = useState(false);
   const [myPost, setMyPost] = useState<MatchPost | null>(null);
   const [postIntro, setPostIntro] = useState("");
+  const [postImageFile, setPostImageFile] = useState<File | null>(null);
+  const [postImagePreviewUrl, setPostImagePreviewUrl] = useState<string | null>(null);
   const [posts, setPosts] = useState<MatchPost[]>([]);
   const [inbox, setInbox] = useState<MatchRequestInboxItem[]>([]);
   const [sent, setSent] = useState<MatchRequestSentItem[]>([]);
@@ -266,6 +277,18 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   }, [router, t, token]);
 
   const dailySentCount = useMemo(() => sent.filter((item) => isSameLocalDay(item.created_at)).length, [sent]);
+
+  useEffect(() => {
+    if (!postImageFile) {
+      setPostImagePreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(postImageFile);
+    setPostImagePreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [postImageFile]);
 
   async function refreshMatchData(currentToken: string) {
     const [postsResponse, inboxResponse, sentResponse] = await Promise.all([
@@ -376,13 +399,25 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
     setBusy(true);
     setError("");
     try {
+      let uploadedImageUrl: string | null = null;
+      if (postImageFile) {
+        const formData = new FormData();
+        formData.append("image_file", postImageFile);
+        const uploadResponse = (await apiRequest("/match/posts/upload-image", {
+          method: "POST",
+          token,
+          body: formData,
+        })) as { image_url: string };
+        uploadedImageUrl = uploadResponse.image_url;
+      }
       const response = (await apiRequest("/match/posts", {
         method: "POST",
         token,
-        body: { intro: postIntro.trim() },
+        body: { intro: postIntro.trim(), image_url: uploadedImageUrl },
       })) as { post: MatchPost };
       setMyPost(response.post);
       setPostIntro("");
+      setPostImageFile(null);
       setShowComposer(false);
       await refreshMatchData(token);
     } catch (err) {
@@ -533,6 +568,14 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
               </div>
 
               <p className="bind-feed-text">{post.intro}</p>
+              {post.image_url ? (
+                <img
+                  src={toAssetUrl(post.image_url)}
+                  alt={post.display_name || "match post"}
+                  className="bind-feed-image"
+                  loading="lazy"
+                />
+              ) : null}
 
               <FormField label={t("bind.match_message_placeholder")}>
                 <Input
@@ -655,6 +698,14 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
           </CardHeader>
           <CardBody>
             <p className="bind-feed-text">{myPost?.intro}</p>
+            {myPost?.image_url ? (
+              <img
+                src={toAssetUrl(myPost.image_url)}
+                alt={t("bind.match_intro_label")}
+                className="bind-feed-image"
+                loading="lazy"
+              />
+            ) : null}
             {myPost ? <p className="bind-feed-time">{formatDate(myPost.created_at, locale)}</p> : null}
             <Button type="button" variant="secondary" onClick={() => void handleClosePost()} disabled={busy}>
               {t("bind.match_close_post")}
@@ -816,7 +867,10 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="bind-composer-title"
-                onClick={() => setShowComposer(false)}
+                onClick={() => {
+                  setShowComposer(false);
+                  setPostImageFile(null);
+                }}
               >
                 <div className="bind-composer" onClick={(event) => event.stopPropagation()}>
                   <h3 id="bind-composer-title">{t("bind.community_publish_title")}</h3>
@@ -829,8 +883,25 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
                       rows={4}
                     />
                   </FormField>
+                  <FormField label={t("bind.match_pick_image")}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setPostImageFile(event.target.files?.[0] || null)}
+                    />
+                  </FormField>
+                  {postImagePreviewUrl ? (
+                    <img src={postImagePreviewUrl} alt={t("bind.match_pick_image")} className="bind-composer-preview" />
+                  ) : null}
                   <ButtonGroup>
-                    <Button type="button" variant="secondary" onClick={() => setShowComposer(false)}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setShowComposer(false);
+                        setPostImageFile(null);
+                      }}
+                    >
                       {t("common.cancel")}
                     </Button>
                     <Button

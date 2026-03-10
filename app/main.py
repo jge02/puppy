@@ -27,6 +27,7 @@ async def lifespan(_: FastAPI):
     chat_manager.bind_loop(asyncio.get_running_loop())
     notification_manager.bind_loop(asyncio.get_running_loop())
     (UPLOADS_DIR / "task-submissions").mkdir(parents=True, exist_ok=True)
+    (UPLOADS_DIR / "match-posts").mkdir(parents=True, exist_ok=True)
     yield
 
 

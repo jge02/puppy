@@ -324,6 +324,7 @@ def init_db() -> None:
                 user_id TEXT NOT NULL,
                 role_preference TEXT NOT NULL CHECK (role_preference IN ('owner', 'puppy')),
                 intro TEXT NOT NULL,
+                image_url TEXT NULL,
                 status TEXT NOT NULL CHECK (status IN ('active', 'closed', 'matched')),
                 created_at TEXT NOT NULL,
                 expires_at TEXT NULL,
@@ -468,6 +469,8 @@ def init_db() -> None:
             connection.execute("ALTER TABLE task_submissions ADD COLUMN media_url TEXT NULL")
         if _table_exists(connection, "match_requests") and not _column_exists(connection, "match_requests", "reject_reason_code"):
             connection.execute("ALTER TABLE match_requests ADD COLUMN reject_reason_code TEXT NULL")
+        if _table_exists(connection, "match_posts") and not _column_exists(connection, "match_posts", "image_url"):
+            connection.execute("ALTER TABLE match_posts ADD COLUMN image_url TEXT NULL")
         connection.commit()
     finally:
         connection.close()

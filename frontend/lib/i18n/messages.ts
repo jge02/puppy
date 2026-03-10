@@ -137,6 +137,7 @@ export type MessageKey =
   | "bind.match_intro_label"
   | "bind.match_intro_placeholder"
   | "bind.match_create_post"
+  | "bind.match_pick_image"
   | "bind.match_close_post"
   | "bind.match_posts_title"
   | "bind.match_send_request"
@@ -341,6 +342,7 @@ const enMessages: Messages = {
   "bind.match_intro_label": "Your match intro",
   "bind.match_intro_placeholder": "Write a short intro so the other side knows who you are.",
   "bind.match_create_post": "Publish in plaza",
+  "bind.match_pick_image": "Attach a photo",
   "bind.match_close_post": "Close my post",
   "bind.match_posts_title": "Open match posts",
   "bind.match_send_request": "Send invite",
@@ -565,6 +567,7 @@ const zhCNMessages: Messages = {
   "bind.match_intro_label": "\u4f60\u7684\u5339\u914d\u4ecb\u7ecd",
   "bind.match_intro_placeholder": "\u5199\u4e00\u53e5\u7b80\u77ed\u4ecb\u7ecd\uff0c\u8ba9\u5bf9\u65b9\u77e5\u9053\u4f60\u662f\u8c01\u3002",
   "bind.match_create_post": "\u53d1\u5e03\u5230\u5e7f\u573a",
+  "bind.match_pick_image": "\u9644\u4e0a\u56fe\u7247",
   "bind.match_pending_count": "\u5f85\u5904\u7406\u9080\u8bf7",
   "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u53d1\u9001",
   "bind.match_status.pending": "\u5f85\u5904\u7406",
@@ -733,6 +736,7 @@ const zhTWMessages: Messages = {
   "bind.match_intro_label": "\u4f60\u7684\u914d\u5c0d\u4ecb\u7d39",
   "bind.match_intro_placeholder": "\u5beb\u4e00\u53e5\u7c21\u77ed\u4ecb\u7d39\uff0c\u8b93\u5c0d\u65b9\u77e5\u9053\u4f60\u662f\u8ab0\u3002",
   "bind.match_create_post": "\u767c\u5e03\u5230\u5ee3\u5834",
+  "bind.match_pick_image": "\u9644\u4e0a\u5716\u7247",
   "bind.match_pending_count": "\u5f85\u8655\u7406\u9080\u8acb",
   "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u9001\u51fa",
   "bind.match_status.pending": "\u5f85\u8655\u7406",

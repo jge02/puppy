@@ -293,6 +293,17 @@
   line-height: var(--leading-normal);
 }
 
+.bind-feed-image {
+  display: block;
+  width: 100%;
+  max-height: min(50vh, 420px);
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(38, 26, 22, 0.12);
+  background: rgba(38, 26, 22, 0.06);
+  margin: 0 0 var(--space-3) 0;
+}
+
 .bind-feed-actions {
   margin-top: var(--space-2);
 }
@@ -371,6 +382,25 @@
 
 .bind-composer textarea {
   width: 100%;
+}
+
+.bind-composer input[type="file"] {
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed rgba(71, 29, 19, 0.24);
+  border-radius: var(--radius-md);
+  background: rgba(255, 248, 240, 0.9);
+  padding: var(--space-2);
+}
+
+.bind-composer-preview {
+  display: block;
+  width: 100%;
+  max-height: min(36vh, 320px);
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(38, 26, 22, 0.12);
+  margin-bottom: var(--space-3);
 }
 
 @keyframes bindFadeUp {

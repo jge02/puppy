@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect, status
 
-from app.database import get_connection, transactional_connection
+from app.database import BASE_DIR, get_connection, transactional_connection
 from app.dependencies import get_current_user
 from app.realtime import notification_manager
 from app.schemas import (
@@ -24,6 +25,7 @@ from app.services import get_current_relationship_for_user, row_to_dict, utc_now
 router = APIRouter()
 DEFAULT_TIMEZONE = "America/Vancouver"
 DAILY_INVITE_LIMIT = 5
+MATCH_POST_UPLOADS_DIR = BASE_DIR / "uploads" / "match-posts"
 
 
 def _raise_api_error(status_code: int, code: str, message: str) -> None:
@@ -68,6 +70,25 @@ def _pending_inbox_count(connection: Any, user_id: str) -> int:
     return int(row["count"] if row else 0)
 
 
+def _store_match_post_image(media_file: UploadFile) -> str:
+    if not media_file.content_type or not media_file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Match post image must be an image file.")
+
+    suffix = Path(media_file.filename or "").suffix.lower() or ".bin"
+    MATCH_POST_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    stored_name = f"match_post_{uuid.uuid4().hex}{suffix}"
+    stored_path = MATCH_POST_UPLOADS_DIR / stored_name
+
+    with stored_path.open("wb") as output_file:
+        while True:
+            chunk = media_file.file.read(1024 * 1024)
+            if not chunk:
+                break
+            output_file.write(chunk)
+
+    return f"/uploads/match-posts/{stored_name}"
+
+
 def _resolve_ws_user(token: str | None) -> dict[str, Any] | None:
     if not token:
         return None
@@ -108,6 +129,7 @@ def list_match_posts(
                    mp.user_id,
                    mp.role_preference,
                    mp.intro,
+                   mp.image_url,
                    mp.status,
                    mp.created_at,
                    mp.expires_at,
@@ -138,6 +160,15 @@ def list_match_posts(
         connection.close()
 
 
+@router.post("/match/posts/upload-image", status_code=status.HTTP_201_CREATED)
+def upload_match_post_image(
+    image_file: UploadFile = File(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    _ = current_user
+    return {"image_url": _store_match_post_image(image_file)}
+
+
 @router.post("/match/posts")
 def create_match_post(
     payload: CreateMatchPostRequest,
@@ -153,19 +184,28 @@ def create_match_post(
         ).fetchone()
         if active:
             _raise_api_error(409, "MATCH_POST_ALREADY_ACTIVE", "You already have an active match post.")
+        if payload.image_url and not payload.image_url.startswith("/uploads/match-posts/"):
+            raise HTTPException(status_code=400, detail="Invalid match post image.")
 
         post_id = str(uuid.uuid4())
         now = utc_now()
         connection.execute(
             """
-            INSERT INTO match_posts (id, user_id, role_preference, intro, status, created_at, expires_at)
-            VALUES (?, ?, ?, ?, 'active', ?, NULL)
+            INSERT INTO match_posts (id, user_id, role_preference, intro, image_url, status, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, 'active', ?, NULL)
             """,
-            (post_id, current_user["id"], current_user["role_preference"], payload.intro.strip(), now),
+            (
+                post_id,
+                current_user["id"],
+                current_user["role_preference"],
+                payload.intro.strip(),
+                payload.image_url.strip() if payload.image_url else None,
+                now,
+            ),
         )
         row = connection.execute(
             """
-            SELECT id, user_id, role_preference, intro, status, created_at, expires_at
+            SELECT id, user_id, role_preference, intro, image_url, status, created_at, expires_at
             FROM match_posts
             WHERE id = ?
             """,
