@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.database import init_db
 from app.realtime import chat_manager, notification_manager
+from app.routes.admin import router as admin_router
 from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.match import router as match_router
@@ -48,6 +49,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(relationships_router)
 app.include_router(task_requests_router)

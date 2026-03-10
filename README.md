@@ -25,3 +25,19 @@ By default it talks to `http://127.0.0.1:8000`. Override with `NEXT_PUBLIC_API_B
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Deploy Stats Output
+
+`scripts/deploy_ec2.sh` now prints admin stats after restarting services.
+
+Set an admin token before running deploy:
+
+```bash
+export PUPPY_ADMIN_TOKEN='your-strong-random-token'
+```
+
+Optional:
+
+```bash
+export ADMIN_STATS_URL='http://127.0.0.1:8000/admin/stats'
+```

@@ -14,6 +14,7 @@ class PuppyApiTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.db_path = os.path.join(self.temp_dir.name, "test.db")
         os.environ["PUPPY_SECRET_KEY"] = "test-secret"
+        os.environ["PUPPY_ADMIN_TOKEN"] = "admin-secret"
 
         from app import database
 
@@ -21,6 +22,7 @@ class PuppyApiTests(unittest.TestCase):
         database.DB_PATH = database.Path(self.db_path)
         database.init_db()
 
+        from app.routes.admin import admin_stats
         from app.routes.auth import login, register
         from app.routes.chat import get_chat_messages, get_chat_unread, mark_chat_read
         from app.routes.match import (
@@ -63,6 +65,7 @@ class PuppyApiTests(unittest.TestCase):
         self.list_sent_match_requests = list_sent_match_requests
         self.login_endpoint = login
         self.accept_match_request = accept_match_request
+        self.admin_stats = admin_stats
         self.block_user = block_user
         self.reject_task_request_endpoint = reject_task_request
         self.register_endpoint = register
@@ -534,6 +537,27 @@ class PuppyApiTests(unittest.TestCase):
         self.assertEqual(statuses[req_a["request"]["id"]]["status"], "accepted")
         self.assertEqual(statuses[req_b["request"]["id"]]["status"], "rejected")
         self.assertEqual(statuses[req_b["request"]["id"]]["reject_reason_code"], "MATCH_ALREADY_PAIRED")
+
+    def test_admin_stats_counts_registered_and_bound_users(self) -> None:
+        self.register("admin-owner@example.com", "owner")
+        puppy = self.register("admin-puppy@example.com", "puppy")
+        extra = self.register("admin-extra@example.com", "owner")
+
+        self.bind_by_invite(
+            self.BindByInviteRequest(invite_code=extra["user"]["invite_code"]),
+            current_user=puppy["user"],
+        )
+
+        stats = self.admin_stats("admin-secret")
+        self.assertEqual(stats["users"]["total_registered"], 3)
+        self.assertEqual(stats["users"]["bound"], 2)
+        self.assertEqual(stats["users"]["unbound"], 1)
+        self.assertEqual(stats["relationships"]["by_status"]["active"], 1)
+
+    def test_admin_stats_rejects_invalid_token(self) -> None:
+        with self.assertRaises(Exception) as context:
+            self.admin_stats("wrong-token")
+        self.assertEqual(getattr(context.exception, "detail", None), "Invalid admin token.")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hmac
+import os
+
 from fastapi import Depends, Header, HTTPException, status
 
 from app.database import get_connection
@@ -33,3 +36,18 @@ def get_current_user(token: str = Depends(get_bearer_token)) -> dict[str, str]:
         return user
     finally:
         connection.close()
+
+
+def require_admin_token(x_admin_token: str | None = Header(default=None)) -> str:
+    configured_token = os.getenv("PUPPY_ADMIN_TOKEN")
+    if not configured_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Admin stats are not enabled.",
+        )
+    if not x_admin_token or not hmac.compare_digest(x_admin_token, configured_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin token.",
+        )
+    return x_admin_token
