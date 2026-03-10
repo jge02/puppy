@@ -442,7 +442,7 @@ export default function LoginPanel() {
                   />
                 </FormField>
 
-                <FormField label={t("common.identity_labels")}>
+                <FormField label={`${t("common.identity_labels")}（可不选）`}>
                   <div className="identity-chip-group" role="group" aria-label={t("common.identity_labels")}>
                     {(["lesbian", "gay", "femboy", "ts", "cd", "4i"] as const).map((label) => (
                       <button

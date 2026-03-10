@@ -1555,7 +1555,7 @@ export default function Dashboard() {
               ]}
             />
           </Form.Item>
-          <Form.Item label={t("common.identity_labels")}>
+          <Form.Item label={`${t("common.identity_labels")}（可不选）`}>
             <div className="dashboard-profile-labels">
               {(["lesbian", "gay", "femboy", "ts", "cd", "4i"] as const).map((label) => (
                 <Tag.CheckableTag
