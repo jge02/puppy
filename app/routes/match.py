@@ -19,7 +19,7 @@ from app.schemas import (
     ReportMatchRequest,
 )
 from app.security import verify_token
-from app.services import get_current_relationship_for_user, row_to_dict, utc_now
+from app.services import decode_identity_labels, get_current_relationship_for_user, normalize_user_profile, row_to_dict, utc_now
 
 
 router = APIRouter()
@@ -99,13 +99,14 @@ def _resolve_ws_user(token: str | None) -> dict[str, Any] | None:
     try:
         row = connection.execute(
             """
-            SELECT id, email, display_name, role_preference, invite_code, created_at
+            SELECT id, email, display_name, role_preference, invite_code, created_at,
+                   gender, seeking_gender, sexual_orientation, identity_labels_json
             FROM users
             WHERE id = ?
             """,
             (user_id,),
         ).fetchone()
-        return row_to_dict(row)
+        return normalize_user_profile(row_to_dict(row))
     finally:
         connection.close()
 
@@ -135,6 +136,10 @@ def list_match_posts(
                    mp.created_at,
                    mp.expires_at,
                    u.display_name,
+                   u.gender,
+                   u.seeking_gender,
+                   u.sexual_orientation,
+                   u.identity_labels_json,
                    EXISTS (
                        SELECT 1
                        FROM match_requests r
@@ -163,7 +168,13 @@ def list_match_posts(
             """,
             tuple(params),
         ).fetchall()
-        return {"posts": [dict(row) for row in rows]}
+        posts: list[dict[str, Any]] = []
+        for row in rows:
+            post = dict(row)
+            post["identity_labels"] = decode_identity_labels(post.get("identity_labels_json"))
+            post.pop("identity_labels_json", None)
+            posts.append(post)
+        return {"posts": posts}
     finally:
         connection.close()
 

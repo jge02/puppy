@@ -40,4 +40,6 @@ Optional:
 
 ```bash
 export ADMIN_STATS_URL='http://127.0.0.1:8000/admin/stats'
+export ADMIN_STATS_RETRIES='15'
+export ADMIN_STATS_RETRY_DELAY_SEC='2'
 ```

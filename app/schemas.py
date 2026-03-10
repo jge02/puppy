@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field, field_validator
 
 RolePreference = Literal["owner", "puppy"]
 TaskSubmissionType = Literal["note", "image", "video"]
+Gender = Literal["male", "female", "trans", "non_binary", "private"]
+SeekingGender = Literal["male", "female", "trans", "non_binary", "any"]
+SexualOrientation = Literal["hetero", "homo", "bi", "pan", "asexual", "questioning", "unspecified"]
+IdentityLabel = Literal["lesbian", "gay", "femboy", "ts", "cd", "4i"]
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -19,6 +23,10 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8)
     display_name: str = Field(min_length=1, max_length=30)
     role_preference: RolePreference
+    gender: Gender = "private"
+    seeking_gender: SeekingGender = "any"
+    sexual_orientation: SexualOrientation = "unspecified"
+    identity_labels: list[IdentityLabel] = Field(default_factory=list)
 
     @field_validator("email")
     @classmethod
@@ -27,6 +35,12 @@ class RegisterRequest(BaseModel):
         if not EMAIL_PATTERN.match(email):
             raise ValueError("Invalid email format.")
         return email
+
+    @field_validator("identity_labels")
+    @classmethod
+    def dedupe_identity_labels(cls, labels: list[IdentityLabel]) -> list[IdentityLabel]:
+        deduped = list(dict.fromkeys(labels))
+        return deduped
 
 
 class LoginRequest(BaseModel):
@@ -40,6 +54,22 @@ class LoginRequest(BaseModel):
         if not EMAIL_PATTERN.match(email):
             raise ValueError("Invalid email format.")
         return email
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=30)
+    gender: Gender | None = None
+    seeking_gender: SeekingGender | None = None
+    sexual_orientation: SexualOrientation | None = None
+    identity_labels: list[IdentityLabel] | None = None
+
+    @field_validator("identity_labels")
+    @classmethod
+    def dedupe_identity_labels(cls, labels: list[IdentityLabel] | None) -> list[IdentityLabel] | None:
+        if labels is None:
+            return None
+        deduped = list(dict.fromkeys(labels))
+        return deduped
 
 
 class BindByInviteRequest(BaseModel):

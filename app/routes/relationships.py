@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_connection, transactional_connection
 from app.dependencies import get_current_user
 from app.schemas import BindByInviteRequest
-from app.services import ensure_relationship_member, get_current_relationship_for_user, row_to_dict, utc_now
+from app.services import ensure_relationship_member, get_current_relationship_for_user, normalize_user_profile, row_to_dict, utc_now
 
 
 router = APIRouter()
@@ -21,13 +21,14 @@ def bind_by_invite(
     with transactional_connection() as connection:
         target_user = connection.execute(
             """
-            SELECT id, email, display_name, role_preference, invite_code, created_at
+            SELECT id, email, display_name, role_preference, invite_code, created_at,
+                   gender, seeking_gender, sexual_orientation, identity_labels_json
             FROM users
             WHERE invite_code = ?
             """,
             (payload.invite_code.upper(),),
         ).fetchone()
-        target_user_data = row_to_dict(target_user)
+        target_user_data = normalize_user_profile(row_to_dict(target_user))
         if not target_user_data:
             raise HTTPException(status_code=404, detail="Invite code not found.")
         if target_user_data["id"] == current_user["id"]:

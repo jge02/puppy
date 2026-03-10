@@ -18,7 +18,7 @@ from app.realtime import (
 from app.schemas import ChatReadRequest
 from app.security import verify_token
 from app.database import get_connection, transactional_connection
-from app.services import row_to_dict
+from app.services import normalize_user_profile, row_to_dict
 
 
 router = APIRouter()
@@ -35,13 +35,14 @@ def _resolve_ws_user(token: str | None) -> dict[str, Any] | None:
     try:
         row = connection.execute(
             """
-            SELECT id, email, display_name, role_preference, invite_code, created_at
+            SELECT id, email, display_name, role_preference, invite_code, created_at,
+                   gender, seeking_gender, sexual_orientation, identity_labels_json
             FROM users
             WHERE id = ?
             """,
             (user_id,),
         ).fetchone()
-        return row_to_dict(row)
+        return normalize_user_profile(row_to_dict(row))
     finally:
         connection.close()
 

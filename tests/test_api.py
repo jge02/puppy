@@ -23,7 +23,7 @@ class PuppyApiTests(unittest.TestCase):
         database.init_db()
 
         from app.routes.admin import admin_stats
-        from app.routes.auth import login, register
+        from app.routes.auth import login, register, update_profile
         from app.routes.chat import get_chat_messages, get_chat_unread, mark_chat_read
         from app.routes.match import (
             accept_match_request,
@@ -49,6 +49,7 @@ class PuppyApiTests(unittest.TestCase):
             RejectTaskRequestRequest,
             RegisterRequest,
             SubmitTaskRequest,
+            UpdateProfileRequest,
         )
 
         self.approve_task = approve_task
@@ -64,6 +65,7 @@ class PuppyApiTests(unittest.TestCase):
         self.list_match_request_inbox = list_match_request_inbox
         self.list_sent_match_requests = list_sent_match_requests
         self.login_endpoint = login
+        self.update_profile_endpoint = update_profile
         self.accept_match_request = accept_match_request
         self.admin_stats = admin_stats
         self.block_user = block_user
@@ -82,6 +84,7 @@ class PuppyApiTests(unittest.TestCase):
         self.RejectTaskRequestRequest = RejectTaskRequestRequest
         self.RegisterRequest = RegisterRequest
         self.SubmitTaskRequest = SubmitTaskRequest
+        self.UpdateProfileRequest = UpdateProfileRequest
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -108,11 +111,72 @@ class PuppyApiTests(unittest.TestCase):
     def test_register_login_and_wallet(self) -> None:
         registered = self.register("owner@example.com", "owner")
         self.assertEqual(registered["wallet"]["balance"], 0)
+        self.assertEqual(registered["user"]["gender"], "private")
+        self.assertEqual(registered["user"]["seeking_gender"], "any")
+        self.assertEqual(registered["user"]["sexual_orientation"], "unspecified")
+        self.assertEqual(registered["user"]["identity_labels"], [])
 
         login_result = self.login_endpoint(
             self.LoginRequest(email="OWNER@example.com", password="password123")
         )
         self.assertEqual(login_result["user"]["email"], "owner@example.com")
+        self.assertEqual(login_result["user"]["identity_labels"], [])
+
+    def test_register_and_patch_profile_fields(self) -> None:
+        registered = self.register_endpoint(
+            self.RegisterRequest(
+                email="profile@example.com",
+                password="password123",
+                display_name="profile",
+                role_preference="owner",
+                gender="female",
+                seeking_gender="any",
+                sexual_orientation="pan",
+                identity_labels=["4i", "ts", "4i"],
+            )
+        )
+        self.assertEqual(registered["user"]["gender"], "female")
+        self.assertEqual(registered["user"]["sexual_orientation"], "pan")
+        self.assertEqual(registered["user"]["identity_labels"], ["4i", "ts"])
+
+        patched = self.update_profile_endpoint(
+            self.UpdateProfileRequest(
+                display_name="profile-updated",
+                identity_labels=["cd", "4i", "cd"],
+            ),
+            current_user=registered["user"],
+        )
+        self.assertEqual(patched["user"]["display_name"], "profile-updated")
+        self.assertEqual(patched["user"]["identity_labels"], ["cd", "4i"])
+        self.assertEqual(patched["user"]["gender"], "female")
+        self.assertEqual(patched["user"]["sexual_orientation"], "pan")
+
+        me = self.database.get_connection()
+        try:
+            row = me.execute(
+                """
+                SELECT display_name, gender, seeking_gender, sexual_orientation, identity_labels_json
+                FROM users WHERE id = ?
+                """,
+                (registered["user"]["id"],),
+            ).fetchone()
+        finally:
+            me.close()
+        self.assertEqual(row["display_name"], "profile-updated")
+        self.assertEqual(row["gender"], "female")
+        self.assertEqual(row["seeking_gender"], "any")
+        self.assertEqual(row["sexual_orientation"], "pan")
+        self.assertEqual(row["identity_labels_json"], '["cd","4i"]')
+
+    def test_invalid_identity_label_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            self.RegisterRequest(
+                email="bad-label@example.com",
+                password="password123",
+                display_name="bad",
+                role_preference="owner",
+                identity_labels=["unknown"],  # type: ignore[list-item]
+            )
 
     def test_owner_can_bind_using_puppy_invite_code(self) -> None:
         owner = self.register("owner-bind@example.com", "owner")
@@ -454,6 +518,35 @@ class PuppyApiTests(unittest.TestCase):
         detail = getattr(context.exception, "detail", None)
         self.assertIsInstance(detail, dict)
         self.assertEqual(detail.get("code"), "MATCH_SAME_ROLE_FORBIDDEN")
+
+    def test_match_posts_include_profile_fields(self) -> None:
+        owner = self.register_endpoint(
+            self.RegisterRequest(
+                email="profile-owner@example.com",
+                password="password123",
+                display_name="owner-profile",
+                role_preference="owner",
+                gender="male",
+                seeking_gender="female",
+                sexual_orientation="hetero",
+                identity_labels=["4i"],
+            )
+        )
+        puppy = self.register("profile-puppy@example.com", "puppy")
+        self.create_match_post(
+            self.CreateMatchPostRequest(intro="owner post"),
+            current_user=owner["user"],
+        )
+
+        from app.routes.match import list_match_posts
+
+        listing = list_match_posts(limit=20, include_mine=False, current_user=puppy["user"])
+        self.assertEqual(len(listing["posts"]), 1)
+        post = listing["posts"][0]
+        self.assertEqual(post["gender"], "male")
+        self.assertEqual(post["seeking_gender"], "female")
+        self.assertEqual(post["sexual_orientation"], "hetero")
+        self.assertEqual(post["identity_labels"], ["4i"])
 
     def test_match_daily_limit_is_five(self) -> None:
         requester = self.register("match-limit-puppy@example.com", "puppy")

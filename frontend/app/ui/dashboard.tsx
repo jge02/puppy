@@ -78,6 +78,10 @@ type User = {
   display_name: string;
   role_preference: "owner" | "puppy";
   invite_code: string;
+  gender: "male" | "female" | "trans" | "non_binary" | "private";
+  seeking_gender: "male" | "female" | "trans" | "non_binary" | "any";
+  sexual_orientation: "hetero" | "homo" | "bi" | "pan" | "asexual" | "questioning" | "unspecified";
+  identity_labels: ("lesbian" | "gay" | "femboy" | "ts" | "cd" | "4i")[];
 };
 
 type Wallet = {
@@ -183,6 +187,14 @@ type UnreadState = {
 };
 
 type DashboardSection = "overview" | "tasks" | "requests" | "chat" | "profile";
+type IdentityLabel = "lesbian" | "gay" | "femboy" | "ts" | "cd" | "4i";
+type ProfileFormState = {
+  display_name: string;
+  gender: User["gender"];
+  seeking_gender: User["seeking_gender"];
+  sexual_orientation: User["sexual_orientation"];
+  identity_labels: IdentityLabel[];
+};
 
 const initialTask: TaskFormState = {
   title: "",
@@ -276,6 +288,27 @@ function getTaskRequestTagColor(status: TaskRequest["status"]) {
   if (status === "fulfilled") return "green";
   if (status === "rejected") return "red";
   return "default";
+}
+
+function normalizeUser(user: Partial<User>): User {
+  return {
+    id: user.id || "",
+    email: user.email || "",
+    display_name: user.display_name || "",
+    role_preference: user.role_preference === "puppy" ? "puppy" : "owner",
+    invite_code: user.invite_code || "",
+    gender: user.gender || "private",
+    seeking_gender: user.seeking_gender || "any",
+    sexual_orientation: user.sexual_orientation || "unspecified",
+    identity_labels: Array.isArray(user.identity_labels) ? user.identity_labels : [],
+  };
+}
+
+function toggleIdentityLabel(current: IdentityLabel[], label: IdentityLabel) {
+  if (current.includes(label)) {
+    return current.filter((item) => item !== label);
+  }
+  return [...current, label];
 }
 
 function getRelationshipTagColor(status: string) {
@@ -401,6 +434,13 @@ export default function Dashboard() {
   const [taskForm, setTaskForm] = useState<TaskFormState>(initialTask);
   const [taskSubmissionForm, setTaskSubmissionForm] = useState<TaskSubmissionFormState>(initialTaskSubmission);
   const [taskRequestForm, setTaskRequestForm] = useState<TaskRequestFormState>(initialTaskRequest);
+  const [profileForm, setProfileForm] = useState<ProfileFormState>({
+    display_name: "",
+    gender: "private",
+    seeking_gender: "any",
+    sexual_orientation: "unspecified",
+    identity_labels: [],
+  });
   const [selectedTaskRequestId, setSelectedTaskRequestId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -433,6 +473,45 @@ export default function Dashboard() {
     label: value,
     value,
   }));
+
+  const formatGenderLabel = (value: User["gender"]) =>
+    value === "male"
+      ? t("gender.male")
+      : value === "female"
+      ? t("gender.female")
+      : value === "trans"
+      ? t("gender.trans")
+      : value === "non_binary"
+      ? t("gender.non_binary")
+      : t("gender.private");
+  const formatSeekingGenderLabel = (value: User["seeking_gender"]) =>
+    value === "any" ? t("seeking_gender.any") : formatGenderLabel(value);
+  const formatOrientationLabel = (value: User["sexual_orientation"]) =>
+    value === "hetero"
+      ? t("orientation.hetero")
+      : value === "homo"
+      ? t("orientation.homo")
+      : value === "bi"
+      ? t("orientation.bi")
+      : value === "pan"
+      ? t("orientation.pan")
+      : value === "asexual"
+      ? t("orientation.asexual")
+      : value === "questioning"
+      ? t("orientation.questioning")
+      : t("orientation.unspecified");
+  const formatIdentityLabel = (value: IdentityLabel) =>
+    value === "lesbian"
+      ? t("identity.lesbian")
+      : value === "gay"
+      ? t("identity.gay")
+      : value === "femboy"
+      ? t("identity.femboy")
+      : value === "ts"
+      ? t("identity.ts")
+      : value === "cd"
+      ? t("identity.cd")
+      : t("identity.4i");
 
   useEffect(() => {
     setToken(window.localStorage.getItem(TOKEN_KEY) || "");
@@ -644,7 +723,15 @@ export default function Dashboard() {
 
   async function loadDashboard(currentToken: string) {
     const meResponse = (await apiRequest("/me", { token: currentToken })) as MeResponse;
-    setMe(meResponse);
+    const normalizedUser = normalizeUser(meResponse.user);
+    setMe({ ...meResponse, user: normalizedUser });
+    setProfileForm({
+      display_name: normalizedUser.display_name,
+      gender: normalizedUser.gender,
+      seeking_gender: normalizedUser.seeking_gender,
+      sexual_orientation: normalizedUser.sexual_orientation,
+      identity_labels: normalizedUser.identity_labels,
+    });
 
     if (!meResponse.current_relationship) {
       setRelationship(null);
@@ -713,6 +800,41 @@ export default function Dashboard() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t("common.request_failed");
       setNotice(translateApiError(message, t));
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!token || !me) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = (await apiRequest("/me/profile", {
+        method: "PATCH",
+        token,
+        body: {
+          display_name: profileForm.display_name.trim(),
+          gender: profileForm.gender,
+          seeking_gender: profileForm.seeking_gender,
+          sexual_orientation: profileForm.sexual_orientation,
+          identity_labels: profileForm.identity_labels,
+        },
+      })) as { user: User };
+      const normalizedUser = normalizeUser(response.user);
+      setMe((current) => (current ? { ...current, user: normalizedUser } : current));
+      setProfileForm({
+        display_name: normalizedUser.display_name,
+        gender: normalizedUser.gender,
+        seeking_gender: normalizedUser.seeking_gender,
+        sexual_orientation: normalizedUser.sexual_orientation,
+        identity_labels: normalizedUser.identity_labels,
+      });
+      setNotice(t("profile.save_done"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("common.request_failed");
+      setNotice(translateApiError(message, t));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1354,23 +1476,110 @@ export default function Dashboard() {
   );
 
   const renderProfileSection = () => (
-    <Card>
-      <div className="dashboard-list-header">
-        <div>
-          <Title level={4}>{t("dashboard.nav.profile")}</Title>
-          <Text type="secondary">{sectionHints.profile}</Text>
+    <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      <Card>
+        <div className="dashboard-list-header">
+          <div>
+            <Title level={4}>{t("dashboard.nav.profile")}</Title>
+            <Text type="secondary">{sectionHints.profile}</Text>
+          </div>
+          <Space wrap>
+            <Button icon={<ReloadOutlined />} onClick={() => void refreshData()}>{t("common.refresh")}</Button>
+            <Button icon={<LogoutOutlined />} onClick={logout}>{t("common.logout")}</Button>
+          </Space>
         </div>
-        <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={() => void refreshData()}>{t("common.refresh")}</Button>
-          <Button icon={<LogoutOutlined />} onClick={logout}>{t("common.logout")}</Button>
-        </Space>
-      </div>
-      <div className="dashboard-info-grid">
-        <div className="dashboard-info-row"><Text type="secondary">{t("common.display_name")}</Text><strong>{me.user.display_name}</strong></div>
-        <div className="dashboard-info-row"><Text type="secondary">{t("common.email")}</Text><strong>{me.user.email}</strong></div>
-        <div className="dashboard-info-row"><Text type="secondary">{t("common.role_preference")}</Text><strong>{me.user.role_preference === "owner" ? t("role.owner") : t("role.puppy")}</strong></div>
-      </div>
-    </Card>
+        <div className="dashboard-info-grid">
+          <div className="dashboard-info-row"><Text type="secondary">{t("common.display_name")}</Text><strong>{me.user.display_name}</strong></div>
+          <div className="dashboard-info-row"><Text type="secondary">{t("common.email")}</Text><strong>{me.user.email}</strong></div>
+          <div className="dashboard-info-row"><Text type="secondary">{t("common.role_preference")}</Text><strong>{me.user.role_preference === "owner" ? t("role.owner") : t("role.puppy")}</strong></div>
+          <div className="dashboard-info-row"><Text type="secondary">{t("common.gender")}</Text><strong>{formatGenderLabel(me.user.gender)}</strong></div>
+          <div className="dashboard-info-row"><Text type="secondary">{t("common.seeking_gender")}</Text><strong>{formatSeekingGenderLabel(me.user.seeking_gender)}</strong></div>
+          <div className="dashboard-info-row"><Text type="secondary">{t("common.sexual_orientation")}</Text><strong>{formatOrientationLabel(me.user.sexual_orientation)}</strong></div>
+          <div className="dashboard-info-row">
+            <Text type="secondary">{t("common.identity_labels")}</Text>
+            <strong>{me.user.identity_labels.length > 0 ? me.user.identity_labels.map((label) => formatIdentityLabel(label)).join(", ") : "-"}</strong>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <Form layout="vertical" onFinish={() => void handleSaveProfile()}>
+          <Form.Item label={t("common.display_name")} required>
+            <Input
+              value={profileForm.display_name}
+              onChange={(event) => setProfileForm((current) => ({ ...current, display_name: event.target.value }))}
+            />
+          </Form.Item>
+          <Form.Item label={t("common.gender")} required>
+            <Select
+              value={profileForm.gender}
+              onChange={(value) => setProfileForm((current) => ({ ...current, gender: value as User["gender"] }))}
+              options={[
+                { value: "male", label: t("gender.male") },
+                { value: "female", label: t("gender.female") },
+                { value: "trans", label: t("gender.trans") },
+                { value: "non_binary", label: t("gender.non_binary") },
+                { value: "private", label: t("gender.private") },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label={t("common.seeking_gender")} required>
+            <Select
+              value={profileForm.seeking_gender}
+              onChange={(value) =>
+                setProfileForm((current) => ({ ...current, seeking_gender: value as User["seeking_gender"] }))
+              }
+              options={[
+                { value: "any", label: t("seeking_gender.any") },
+                { value: "male", label: t("gender.male") },
+                { value: "female", label: t("gender.female") },
+                { value: "trans", label: t("gender.trans") },
+                { value: "non_binary", label: t("gender.non_binary") },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label={t("common.sexual_orientation")} required>
+            <Select
+              value={profileForm.sexual_orientation}
+              onChange={(value) =>
+                setProfileForm((current) => ({ ...current, sexual_orientation: value as User["sexual_orientation"] }))
+              }
+              options={[
+                { value: "hetero", label: t("orientation.hetero") },
+                { value: "homo", label: t("orientation.homo") },
+                { value: "bi", label: t("orientation.bi") },
+                { value: "pan", label: t("orientation.pan") },
+                { value: "asexual", label: t("orientation.asexual") },
+                { value: "questioning", label: t("orientation.questioning") },
+                { value: "unspecified", label: t("orientation.unspecified") },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label={t("common.identity_labels")}>
+            <div className="dashboard-profile-labels">
+              {(["lesbian", "gay", "femboy", "ts", "cd", "4i"] as const).map((label) => (
+                <Tag.CheckableTag
+                  key={label}
+                  className="dashboard-profile-label-chip"
+                  checked={profileForm.identity_labels.includes(label)}
+                  onChange={() =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      identity_labels: toggleIdentityLabel(current.identity_labels, label),
+                    }))
+                  }
+                >
+                  {formatIdentityLabel(label)}
+                </Tag.CheckableTag>
+              ))}
+            </div>
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={busy} disabled={!profileForm.display_name.trim()}>
+            {busy ? t("profile.saving") : t("profile.save")}
+          </Button>
+        </Form>
+      </Card>
+    </Space>
   );
 
   const renderSectionContent = () => {

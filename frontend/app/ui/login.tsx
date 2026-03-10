@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ChangeEvent, Dispatch, FormEvent, SetStateAction } from "react";
 
 import { translateApiError } from "../../lib/i18n/api-errors";
+import type { MessageKey } from "../../lib/i18n/messages";
 import { useI18n } from "../../lib/i18n/useI18n";
 import { Button } from "./Button";
 import { Card } from "./Card";
@@ -18,12 +19,20 @@ const TOKEN_KEY = "puppy_token";
 const ONBOARDING_KEY = "puppy_onboarding";
 
 type RolePreference = "owner" | "puppy";
+type Gender = "male" | "female" | "trans" | "non_binary" | "private";
+type SeekingGender = "male" | "female" | "trans" | "non_binary" | "any";
+type SexualOrientation = "hetero" | "homo" | "bi" | "pan" | "asexual" | "questioning" | "unspecified";
+type IdentityLabel = "lesbian" | "gay" | "femboy" | "ts" | "cd" | "4i";
 
 type RegisterFormState = {
   email: string;
   password: string;
   display_name: string;
   role_preference: RolePreference;
+  gender: Gender;
+  seeking_gender: SeekingGender;
+  sexual_orientation: SexualOrientation;
+  identity_labels: IdentityLabel[];
 };
 
 type LoginFormState = {
@@ -39,6 +48,10 @@ type UserSummary = {
   display_name: string;
   role_preference: RolePreference;
   invite_code: string;
+  gender: Gender;
+  seeking_gender: SeekingGender;
+  sexual_orientation: SexualOrientation;
+  identity_labels: IdentityLabel[];
 };
 
 type AuthResponse = {
@@ -56,6 +69,10 @@ const initialRegister: RegisterFormState = {
   password: "",
   display_name: "",
   role_preference: "owner",
+  gender: "private",
+  seeking_gender: "any",
+  sexual_orientation: "unspecified",
+  identity_labels: [],
 };
 
 const initialLogin: LoginFormState = {
@@ -97,6 +114,25 @@ function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function toggleIdentityLabel(
+  current: IdentityLabel[],
+  label: IdentityLabel,
+) {
+  if (current.includes(label)) {
+    return current.filter((item) => item !== label);
+  }
+  return [...current, label];
+}
+
+function identityLabelText(label: IdentityLabel, t: (key: MessageKey) => string) {
+  if (label === "lesbian") return t("identity.lesbian");
+  if (label === "gay") return t("identity.gay");
+  if (label === "femboy") return t("identity.femboy");
+  if (label === "ts") return t("identity.ts");
+  if (label === "cd") return t("identity.cd");
+  return t("identity.4i");
+}
+
 export default function LoginPanel() {
   const router = useRouter();
   const { t } = useI18n();
@@ -130,6 +166,10 @@ export default function LoginPanel() {
         display_name: user.display_name,
         role_preference: user.role_preference,
         invite_code: user.invite_code,
+        gender: user.gender,
+        seeking_gender: user.seeking_gender,
+        sexual_orientation: user.sexual_orientation,
+        identity_labels: user.identity_labels,
       })
     );
   }
@@ -353,6 +393,74 @@ export default function LoginPanel() {
                       { value: "puppy", label: t("role.puppy") },
                     ]}
                   />
+                </FormField>
+
+                <FormField label={t("common.gender")} required>
+                  <Select
+                    value={registerForm.gender}
+                    onChange={setFormField(setRegisterForm, "gender")}
+                    placeholder={t("common.select_option")}
+                    options={[
+                      { value: "male", label: t("gender.male") },
+                      { value: "female", label: t("gender.female") },
+                      { value: "trans", label: t("gender.trans") },
+                      { value: "non_binary", label: t("gender.non_binary") },
+                      { value: "private", label: t("gender.private") },
+                    ]}
+                  />
+                </FormField>
+
+                <FormField label={t("common.seeking_gender")} required>
+                  <Select
+                    value={registerForm.seeking_gender}
+                    onChange={setFormField(setRegisterForm, "seeking_gender")}
+                    placeholder={t("common.select_option")}
+                    options={[
+                      { value: "any", label: t("seeking_gender.any") },
+                      { value: "male", label: t("gender.male") },
+                      { value: "female", label: t("gender.female") },
+                      { value: "trans", label: t("gender.trans") },
+                      { value: "non_binary", label: t("gender.non_binary") },
+                    ]}
+                  />
+                </FormField>
+
+                <FormField label={t("common.sexual_orientation")} required>
+                  <Select
+                    value={registerForm.sexual_orientation}
+                    onChange={setFormField(setRegisterForm, "sexual_orientation")}
+                    placeholder={t("common.select_option")}
+                    options={[
+                      { value: "hetero", label: t("orientation.hetero") },
+                      { value: "homo", label: t("orientation.homo") },
+                      { value: "bi", label: t("orientation.bi") },
+                      { value: "pan", label: t("orientation.pan") },
+                      { value: "asexual", label: t("orientation.asexual") },
+                      { value: "questioning", label: t("orientation.questioning") },
+                      { value: "unspecified", label: t("orientation.unspecified") },
+                    ]}
+                  />
+                </FormField>
+
+                <FormField label={t("common.identity_labels")}>
+                  <div className="identity-chip-group" role="group" aria-label={t("common.identity_labels")}>
+                    {(["lesbian", "gay", "femboy", "ts", "cd", "4i"] as const).map((label) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className={`identity-chip${registerForm.identity_labels.includes(label) ? " is-active" : ""}`}
+                        aria-pressed={registerForm.identity_labels.includes(label)}
+                        onClick={() =>
+                          setRegisterForm((current) => ({
+                            ...current,
+                            identity_labels: toggleIdentityLabel(current.identity_labels, label),
+                          }))
+                        }
+                      >
+                        {identityLabelText(label, t)}
+                      </button>
+                    ))}
+                  </div>
                 </FormField>
 
                 <Button type="submit" variant="primary" disabled={busy} style={{ width: "100%" }}>

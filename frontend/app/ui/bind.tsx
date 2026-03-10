@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +10,7 @@ import { Badge } from "./Badge";
 import { Button, ButtonGroup } from "./Button";
 import { Card, CardBody, CardHeader } from "./Card";
 import { ErrorState } from "./ErrorState";
-import { FormField, Input } from "./FormField";
+import { FormField, Input, Select } from "./FormField";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { LoadingState } from "./LoadingState";
 import "./bind.css";
@@ -26,6 +26,10 @@ type UserSummary = {
   display_name: string;
   role_preference: "owner" | "puppy";
   invite_code: string;
+  gender: "male" | "female" | "trans" | "non_binary" | "private";
+  seeking_gender: "male" | "female" | "trans" | "non_binary" | "any";
+  sexual_orientation: "hetero" | "homo" | "bi" | "pan" | "asexual" | "questioning" | "unspecified";
+  identity_labels: ("lesbian" | "gay" | "femboy" | "ts" | "cd" | "4i")[];
 };
 
 type RelationshipSummary = {
@@ -47,6 +51,10 @@ type MatchPost = {
   created_at: string;
   display_name?: string;
   has_pending_request?: boolean;
+  gender?: UserSummary["gender"];
+  seeking_gender?: UserSummary["seeking_gender"];
+  sexual_orientation?: UserSummary["sexual_orientation"];
+  identity_labels?: UserSummary["identity_labels"];
 };
 
 type MatchRequestInboxItem = {
@@ -76,6 +84,14 @@ type MatchRequestSentItem = {
 
 type ApiErrorDetail = string | { code?: string; message?: string } | undefined;
 type MatchCommunityView = "feed" | "inbox" | "mine";
+type IdentityLabel = "lesbian" | "gay" | "femboy" | "ts" | "cd" | "4i";
+type ProfileFormState = {
+  display_name: string;
+  gender: UserSummary["gender"];
+  seeking_gender: UserSummary["seeking_gender"];
+  sexual_orientation: UserSummary["sexual_orientation"];
+  identity_labels: IdentityLabel[];
+};
 
 class ApiRequestError extends Error {
   detail: ApiErrorDetail;
@@ -198,6 +214,59 @@ function toAssetUrl(url: string) {
   return `${API_BASE_URL}${url}`;
 }
 
+function toggleIdentityLabel(current: IdentityLabel[], label: IdentityLabel) {
+  if (current.includes(label)) {
+    return current.filter((item) => item !== label);
+  }
+  return [...current, label];
+}
+
+function formatGenderLabel(value: UserSummary["gender"], t: (key: MessageKey) => string) {
+  if (value === "male") return t("gender.male");
+  if (value === "female") return t("gender.female");
+  if (value === "trans") return t("gender.trans");
+  if (value === "non_binary") return t("gender.non_binary");
+  return t("gender.private");
+}
+
+function formatSeekingGenderLabel(value: UserSummary["seeking_gender"], t: (key: MessageKey) => string) {
+  if (value === "any") return t("seeking_gender.any");
+  return formatGenderLabel(value, t);
+}
+
+function formatOrientationLabel(value: UserSummary["sexual_orientation"], t: (key: MessageKey) => string) {
+  if (value === "hetero") return t("orientation.hetero");
+  if (value === "homo") return t("orientation.homo");
+  if (value === "bi") return t("orientation.bi");
+  if (value === "pan") return t("orientation.pan");
+  if (value === "asexual") return t("orientation.asexual");
+  if (value === "questioning") return t("orientation.questioning");
+  return t("orientation.unspecified");
+}
+
+function formatIdentityLabel(value: IdentityLabel, t: (key: MessageKey) => string) {
+  if (value === "lesbian") return t("identity.lesbian");
+  if (value === "gay") return t("identity.gay");
+  if (value === "femboy") return t("identity.femboy");
+  if (value === "ts") return t("identity.ts");
+  if (value === "cd") return t("identity.cd");
+  return t("identity.4i");
+}
+
+function normalizeUserSummary(user: Partial<UserSummary>): UserSummary {
+  return {
+    id: user.id || "",
+    email: user.email || "",
+    display_name: user.display_name || "",
+    role_preference: user.role_preference === "puppy" ? "puppy" : "owner",
+    invite_code: user.invite_code || "",
+    gender: user.gender || "private",
+    seeking_gender: user.seeking_gender || "any",
+    sexual_orientation: user.sexual_orientation || "unspecified",
+    identity_labels: Array.isArray(user.identity_labels) ? user.identity_labels : [],
+  };
+}
+
 type BindPanelProps = {
   source?: string;
   tab?: string;
@@ -213,7 +282,9 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [activeTab, setActiveTab] = useState<"match" | "invite">(tab === "invite" ? "invite" : "match");
+  const [activeTab, setActiveTab] = useState<"match" | "invite" | "profile">(
+    tab === "invite" ? "invite" : tab === "profile" ? "profile" : "match"
+  );
   const [activeMatchView, setActiveMatchView] = useState<MatchCommunityView>("feed");
   const [showComposer, setShowComposer] = useState(false);
   const [myPost, setMyPost] = useState<MatchPost | null>(null);
@@ -225,6 +296,13 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   const [sent, setSent] = useState<MatchRequestSentItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [requestMessages, setRequestMessages] = useState<Record<string, string>>({});
+  const [profileForm, setProfileForm] = useState<ProfileFormState>({
+    display_name: "",
+    gender: "private",
+    seeking_gender: "any",
+    sexual_orientation: "unspecified",
+    identity_labels: [],
+  });
 
   useEffect(() => {
     const currentToken = window.localStorage.getItem(TOKEN_KEY) || "";
@@ -237,7 +315,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
     const onboarding = readOnboarding();
     if (onboarding?.email && onboarding?.display_name && onboarding?.role_preference && onboarding?.invite_code) {
       setMe({
-        user: onboarding as UserSummary,
+        user: normalizeUserSummary(onboarding),
         current_relationship: null,
       });
     }
@@ -257,7 +335,15 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
         if (cancelled) {
           return;
         }
-        setMe(response);
+        const normalizedUser = normalizeUserSummary(response.user);
+        setMe({ ...response, user: normalizedUser });
+        setProfileForm({
+          display_name: normalizedUser.display_name,
+          gender: normalizedUser.gender,
+          seeking_gender: normalizedUser.seeking_gender,
+          sexual_orientation: normalizedUser.sexual_orientation,
+          identity_labels: normalizedUser.identity_labels,
+        });
         if (response.current_relationship) {
           router.replace("/dashboard");
         }
@@ -537,6 +623,49 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
     router.replace("/dashboard");
   }
 
+  async function handleSaveProfile() {
+    if (!token) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = (await apiRequest("/me/profile", {
+        method: "PATCH",
+        token,
+        body: {
+          display_name: profileForm.display_name.trim(),
+          gender: profileForm.gender,
+          seeking_gender: profileForm.seeking_gender,
+          sexual_orientation: profileForm.sexual_orientation,
+          identity_labels: profileForm.identity_labels,
+        },
+      })) as { user: UserSummary };
+      const normalizedUser = normalizeUserSummary(response.user);
+      setMe((current) => (current ? { ...current, user: normalizedUser } : current));
+      const onboarding = readOnboarding();
+      if (onboarding) {
+        window.sessionStorage.setItem(
+          ONBOARDING_KEY,
+          JSON.stringify({
+            ...onboarding,
+            display_name: normalizedUser.display_name,
+            gender: normalizedUser.gender,
+            seeking_gender: normalizedUser.seeking_gender,
+            sexual_orientation: normalizedUser.sexual_orientation,
+            identity_labels: normalizedUser.identity_labels,
+          }),
+        );
+      }
+      setNotice(t("profile.save_done"));
+    } catch (err) {
+      setError(translateApiError(getErrorDetail(err), t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!hydrated || !me) {
     return <LoadingState message={t("common.loading_dashboard")} />;
   }
@@ -567,6 +696,18 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
               </div>
 
               <p className="bind-feed-text">{post.intro}</p>
+              <p className="bind-feed-time">
+                {t("common.gender")}: {formatGenderLabel(post.gender || "private", t)} | {t("common.seeking_gender")}:{" "}
+                {formatSeekingGenderLabel(post.seeking_gender || "any", t)}
+              </p>
+              <p className="bind-feed-time">
+                {t("common.sexual_orientation")}: {formatOrientationLabel(post.sexual_orientation || "unspecified", t)}
+              </p>
+              {post.identity_labels && post.identity_labels.length > 0 ? (
+                <p className="bind-feed-time">
+                  {t("common.identity_labels")}: {post.identity_labels.map((label) => formatIdentityLabel(label, t)).join(", ")}
+                </p>
+              ) : null}
               {post.image_url ? (
                 <img
                   src={toAssetUrl(post.image_url)}
@@ -627,7 +768,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
     <section className="bind-community-stream" aria-label={t("bind.community_inbox")}>
       {inbox.length === 0 ? (
         <div className="bind-empty-card">
-          <span className="bind-empty-icon">📭</span>
+          <span className="bind-empty-icon">📥</span>
           <p className="bind-empty-title">{t("bind.community_inbox_empty")}</p>
         </div>
       ) : (
@@ -779,10 +920,17 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
           </button>
           <button
             type="button"
+            className={`btn-tab${activeTab === "profile" ? " is-active" : ""}`}
+            onClick={() => setActiveTab("profile")}
+          >
+            👤 {t("bind.tab_profile")}
+          </button>
+          <button
+            type="button"
             className={`btn-tab${activeTab === "invite" ? " is-active" : ""}`}
             onClick={() => setActiveTab("invite")}
           >
-            🏷️ {t("bind.tab_invite")}
+            🏷️{t("bind.tab_invite")}
           </button>
         </div>
 
@@ -792,7 +940,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
               <div className="bind-community-head-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "18px 20px", flexWrap: "wrap" }}>
                 <div className="bind-community-profile">
                   <div className="bind-community-avatar">
-                    {isOwner ? "👑" : getInitialLetter(me.user.display_name)}
+                    {isOwner ? "👤" : getInitialLetter(me.user.display_name)}
                   </div>
                   <div>
                     <p className="bind-community-name">{me.user.display_name}</p>
@@ -817,28 +965,28 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
             <nav className="bind-community-nav" aria-label={t("bind.tab_match")}>
               <button
                 type="button"
-                data-icon="🐾"
                 className={`bind-community-nav-item${activeMatchView === "feed" ? " is-active" : ""}`}
                 onClick={() => setActiveMatchView("feed")}
               >
-                🐾 {t("bind.community_feed")}
+                <span className="bind-community-nav-icon" aria-hidden="true">🐾</span>
+                <span className="bind-community-nav-label">{t("bind.community_feed")}</span>
               </button>
               <button
                 type="button"
-                data-icon="📬"
                 className={`bind-community-nav-item${activeMatchView === "inbox" ? " is-active" : ""}`}
                 onClick={() => setActiveMatchView("inbox")}
               >
-                📬 {t("bind.community_inbox")}
+                <span className="bind-community-nav-icon" aria-hidden="true">📬</span>
+                <span className="bind-community-nav-label">{t("bind.community_inbox")}</span>
                 {pendingCount > 0 ? <span className="bind-community-nav-count">{pendingCount}</span> : null}
               </button>
               <button
                 type="button"
-                data-icon="🏷️"
                 className={`bind-community-nav-item${activeMatchView === "mine" ? " is-active" : ""}`}
                 onClick={() => setActiveMatchView("mine")}
               >
-                🏷️ {t("bind.community_mine")}
+                <span className="bind-community-nav-icon" aria-hidden="true">🏷️</span>
+                <span className="bind-community-nav-label">{t("bind.community_mine")}</span>
               </button>
             </nav>
 
@@ -916,7 +1064,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
               </div>
             ) : null}
           </>
-        ) : (
+        ) : activeTab === "profile" ? (
           <div className="bind-shell">
             <Card>
               <CardHeader>
@@ -938,6 +1086,26 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
                       {me.user.role_preference === "owner" ? t("role.owner") : t("role.puppy")}
                     </p>
                   </div>
+                  <div className="dashboard-info-row">
+                    <p className="dashboard-info-label">{t("common.gender")}</p>
+                    <p className="dashboard-info-value">{formatGenderLabel(me.user.gender, t)}</p>
+                  </div>
+                  <div className="dashboard-info-row">
+                    <p className="dashboard-info-label">{t("common.seeking_gender")}</p>
+                    <p className="dashboard-info-value">{formatSeekingGenderLabel(me.user.seeking_gender, t)}</p>
+                  </div>
+                  <div className="dashboard-info-row">
+                    <p className="dashboard-info-label">{t("common.sexual_orientation")}</p>
+                    <p className="dashboard-info-value">{formatOrientationLabel(me.user.sexual_orientation, t)}</p>
+                  </div>
+                  <div className="dashboard-info-row">
+                    <p className="dashboard-info-label">{t("common.identity_labels")}</p>
+                    <p className="dashboard-info-value">
+                      {(me.user.identity_labels || []).length > 0
+                        ? me.user.identity_labels.map((label) => formatIdentityLabel(label, t)).join(", ")
+                        : "-"}
+                    </p>
+                  </div>
                 </div>
               </CardBody>
             </Card>
@@ -945,63 +1113,162 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
             <div className="bind-stack">
               <Card role={isOwner ? "owner" : "puppy"}>
                 <CardHeader>
-                  <h2 style={{ margin: 0 }}>{t("bind.my_invite_code")}</h2>
+                  <h2 style={{ margin: 0 }}>{t("dashboard.nav.profile")}</h2>
                 </CardHeader>
                 <CardBody>
-                  <div className="bind-code">
-                    <p className="bind-code-value">{me.user.invite_code}</p>
-                  </div>
-                  <p style={{ marginTop: "var(--space-4)", color: "var(--muted)" }}>
-                    {isOwner ? t("bind.owner_waiting_hint") : t("bind.puppy_waiting_hint")}
-                  </p>
-                </CardBody>
-              </Card>
-
-              <Card role={isOwner ? "owner" : "puppy"}>
-                <CardHeader>
-                  <h2 style={{ margin: 0 }}>{t("bind.enter_counterpart_code")}</h2>
-                </CardHeader>
-                <CardBody>
-                  <p style={{ marginTop: 0, marginBottom: "var(--space-4)", color: "var(--muted)" }}>
-                    {t("bind.counterpart_code_hint")}
-                  </p>
-                  <FormField label={t("dashboard.invite_code")}>
+                  <FormField label={t("common.display_name")} required>
                     <Input
-                      value={inviteCode}
-                      onChange={(event) => setInviteCode(event.target.value)}
-                      placeholder={t("dashboard.invite_code_placeholder")}
+                      value={profileForm.display_name}
+                      onChange={(event) => setProfileForm((current) => ({ ...current, display_name: event.target.value }))}
                     />
                   </FormField>
-                  <ButtonGroup>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      role={isOwner ? "owner" : "puppy"}
-                      onClick={() => void handleBind()}
-                      disabled={busy || !inviteCode.trim()}
-                    >
-                      {busy ? t("dashboard.binding") : t("dashboard.bind_by_invite")}
-                    </Button>
-                    <Button type="button" variant="secondary" onClick={() => void handleSkip()}>
-                      {t("bind.skip_to_dashboard")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        window.sessionStorage.setItem(SKIP_BIND_KEY, "1");
-                        router.replace("/dashboard");
-                      }}
-                    >
-                      {t("bind.open_dashboard")}
-                    </Button>
-                  </ButtonGroup>
+                  <FormField label={t("common.gender")} required>
+                    <Select
+                      value={profileForm.gender}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({ ...current, gender: event.target.value as UserSummary["gender"] }))
+                      }
+                      options={[
+                        { value: "male", label: t("gender.male") },
+                        { value: "female", label: t("gender.female") },
+                        { value: "trans", label: t("gender.trans") },
+                        { value: "non_binary", label: t("gender.non_binary") },
+                        { value: "private", label: t("gender.private") },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label={t("common.seeking_gender")} required>
+                    <Select
+                      value={profileForm.seeking_gender}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          seeking_gender: event.target.value as UserSummary["seeking_gender"],
+                        }))
+                      }
+                      options={[
+                        { value: "any", label: t("seeking_gender.any") },
+                        { value: "male", label: t("gender.male") },
+                        { value: "female", label: t("gender.female") },
+                        { value: "trans", label: t("gender.trans") },
+                        { value: "non_binary", label: t("gender.non_binary") },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label={t("common.sexual_orientation")} required>
+                    <Select
+                      value={profileForm.sexual_orientation}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          sexual_orientation: event.target.value as UserSummary["sexual_orientation"],
+                        }))
+                      }
+                      options={[
+                        { value: "hetero", label: t("orientation.hetero") },
+                        { value: "homo", label: t("orientation.homo") },
+                        { value: "bi", label: t("orientation.bi") },
+                        { value: "pan", label: t("orientation.pan") },
+                        { value: "asexual", label: t("orientation.asexual") },
+                        { value: "questioning", label: t("orientation.questioning") },
+                        { value: "unspecified", label: t("orientation.unspecified") },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label={t("common.identity_labels")}>
+                    <div className="identity-chip-group" role="group" aria-label={t("common.identity_labels")}>
+                      {(["lesbian", "gay", "femboy", "ts", "cd", "4i"] as const).map((label) => (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`identity-chip${profileForm.identity_labels.includes(label) ? " is-active" : ""}`}
+                          aria-pressed={profileForm.identity_labels.includes(label)}
+                          onClick={() =>
+                            setProfileForm((current) => ({
+                              ...current,
+                              identity_labels: toggleIdentityLabel(current.identity_labels, label),
+                            }))
+                          }
+                        >
+                          {formatIdentityLabel(label, t)}
+                        </button>
+                      ))}
+                    </div>
+                  </FormField>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    role={isOwner ? "owner" : "puppy"}
+                    onClick={() => void handleSaveProfile()}
+                    disabled={busy || !profileForm.display_name.trim()}
+                  >
+                    {busy ? t("profile.saving") : t("profile.save")}
+                  </Button>
                 </CardBody>
               </Card>
             </div>
+          </div>
+        ) : (
+          <div className="bind-shell">
+            <Card role={isOwner ? "owner" : "puppy"}>
+              <CardHeader>
+                <h2 style={{ margin: 0 }}>{t("bind.my_invite_code")}</h2>
+              </CardHeader>
+              <CardBody>
+                <div className="bind-code">
+                  <p className="bind-code-value">{me.user.invite_code}</p>
+                </div>
+                <p style={{ marginTop: "var(--space-4)", color: "var(--muted)" }}>
+                  {isOwner ? t("bind.owner_waiting_hint") : t("bind.puppy_waiting_hint")}
+                </p>
+              </CardBody>
+            </Card>
+
+            <Card role={isOwner ? "owner" : "puppy"}>
+              <CardHeader>
+                <h2 style={{ margin: 0 }}>{t("bind.enter_counterpart_code")}</h2>
+              </CardHeader>
+              <CardBody>
+                <p style={{ marginTop: 0, marginBottom: "var(--space-4)", color: "var(--muted)" }}>
+                  {t("bind.counterpart_code_hint")}
+                </p>
+                <FormField label={t("dashboard.invite_code")}>
+                  <Input
+                    value={inviteCode}
+                    onChange={(event) => setInviteCode(event.target.value)}
+                    placeholder={t("dashboard.invite_code_placeholder")}
+                  />
+                </FormField>
+                <ButtonGroup>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    role={isOwner ? "owner" : "puppy"}
+                    onClick={() => void handleBind()}
+                    disabled={busy || !inviteCode.trim()}
+                  >
+                    {busy ? t("dashboard.binding") : t("dashboard.bind_by_invite")}
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => void handleSkip()}>
+                    {t("bind.skip_to_dashboard")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      window.sessionStorage.setItem(SKIP_BIND_KEY, "1");
+                      router.replace("/dashboard");
+                    }}
+                  >
+                    {t("bind.open_dashboard")}
+                  </Button>
+                </ButtonGroup>
+              </CardBody>
+            </Card>
           </div>
         )}
       </main>
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any
@@ -15,6 +16,36 @@ def utc_now() -> str:
 
 def row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
     return dict(row) if row is not None else None
+
+
+def decode_identity_labels(raw_value: Any) -> list[str]:
+    if isinstance(raw_value, list):
+        return [str(item) for item in raw_value]
+    if not isinstance(raw_value, str) or not raw_value:
+        return []
+    try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(item) for item in parsed]
+
+
+def encode_identity_labels(labels: list[str]) -> str:
+    return json.dumps(labels, ensure_ascii=True, separators=(",", ":"))
+
+
+def normalize_user_profile(user: dict[str, Any] | None) -> dict[str, Any] | None:
+    if user is None:
+        return None
+    user["gender"] = user.get("gender") or "private"
+    user["seeking_gender"] = user.get("seeking_gender") or "any"
+    user["sexual_orientation"] = user.get("sexual_orientation") or "unspecified"
+    labels = decode_identity_labels(user.get("identity_labels_json"))
+    user["identity_labels"] = labels
+    user.pop("identity_labels_json", None)
+    return user
 
 
 def generate_unique_invite_code(connection: sqlite3.Connection) -> str:

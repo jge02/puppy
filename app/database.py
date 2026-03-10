@@ -191,10 +191,20 @@ def _migrate_users_role_preference(connection: sqlite3.Connection) -> None:
                 display_name TEXT NOT NULL,
                 role_preference TEXT NOT NULL CHECK (role_preference IN ('owner', 'puppy')),
                 invite_code TEXT NOT NULL UNIQUE,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                gender TEXT NOT NULL DEFAULT 'private'
+                    CHECK (gender IN ('male', 'female', 'trans', 'non_binary', 'private')),
+                seeking_gender TEXT NOT NULL DEFAULT 'any'
+                    CHECK (seeking_gender IN ('male', 'female', 'trans', 'non_binary', 'any')),
+                sexual_orientation TEXT NOT NULL DEFAULT 'unspecified'
+                    CHECK (sexual_orientation IN ('hetero', 'homo', 'bi', 'pan', 'asexual', 'questioning', 'unspecified')),
+                identity_labels_json TEXT NOT NULL DEFAULT '[]'
             );
 
-            INSERT INTO users (id, email, password_hash, display_name, role_preference, invite_code, created_at)
+            INSERT INTO users (
+                id, email, password_hash, display_name, role_preference, invite_code, created_at,
+                gender, seeking_gender, sexual_orientation, identity_labels_json
+            )
             SELECT
                 id,
                 email,
@@ -202,7 +212,11 @@ def _migrate_users_role_preference(connection: sqlite3.Connection) -> None:
                 display_name,
                 CASE WHEN role_preference = 'switch' THEN 'puppy' ELSE role_preference END,
                 invite_code,
-                created_at
+                created_at,
+                'private',
+                'any',
+                'unspecified',
+                '[]'
             FROM users_old;
 
             DROP TABLE users_old;
@@ -248,7 +262,14 @@ def init_db() -> None:
                 display_name TEXT NOT NULL,
                 role_preference TEXT NOT NULL CHECK (role_preference IN ('owner', 'puppy')),
                 invite_code TEXT NOT NULL UNIQUE,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                gender TEXT NOT NULL DEFAULT 'private'
+                    CHECK (gender IN ('male', 'female', 'trans', 'non_binary', 'private')),
+                seeking_gender TEXT NOT NULL DEFAULT 'any'
+                    CHECK (seeking_gender IN ('male', 'female', 'trans', 'non_binary', 'any')),
+                sexual_orientation TEXT NOT NULL DEFAULT 'unspecified'
+                    CHECK (sexual_orientation IN ('hetero', 'homo', 'bi', 'pan', 'asexual', 'questioning', 'unspecified')),
+                identity_labels_json TEXT NOT NULL DEFAULT '[]'
             );
 
             CREATE TABLE IF NOT EXISTS relationships (
@@ -471,6 +492,32 @@ def init_db() -> None:
             connection.execute("ALTER TABLE match_requests ADD COLUMN reject_reason_code TEXT NULL")
         if _table_exists(connection, "match_posts") and not _column_exists(connection, "match_posts", "image_url"):
             connection.execute("ALTER TABLE match_posts ADD COLUMN image_url TEXT NULL")
+        if _table_exists(connection, "users") and not _column_exists(connection, "users", "gender"):
+            connection.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN gender TEXT NOT NULL DEFAULT 'private'
+                    CHECK (gender IN ('male', 'female', 'trans', 'non_binary', 'private'))
+                """
+            )
+        if _table_exists(connection, "users") and not _column_exists(connection, "users", "seeking_gender"):
+            connection.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN seeking_gender TEXT NOT NULL DEFAULT 'any'
+                    CHECK (seeking_gender IN ('male', 'female', 'trans', 'non_binary', 'any'))
+                """
+            )
+        if _table_exists(connection, "users") and not _column_exists(connection, "users", "sexual_orientation"):
+            connection.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN sexual_orientation TEXT NOT NULL DEFAULT 'unspecified'
+                    CHECK (sexual_orientation IN ('hetero', 'homo', 'bi', 'pan', 'asexual', 'questioning', 'unspecified'))
+                """
+            )
+        if _table_exists(connection, "users") and not _column_exists(connection, "users", "identity_labels_json"):
+            connection.execute("ALTER TABLE users ADD COLUMN identity_labels_json TEXT NOT NULL DEFAULT '[]'")
         connection.commit()
     finally:
         connection.close()

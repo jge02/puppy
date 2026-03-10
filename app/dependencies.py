@@ -7,7 +7,7 @@ from fastapi import Depends, Header, HTTPException, status
 
 from app.database import get_connection
 from app.security import verify_token
-from app.services import row_to_dict
+from app.services import normalize_user_profile, row_to_dict
 
 
 def get_bearer_token(authorization: str | None = Header(default=None)) -> str:
@@ -24,13 +24,14 @@ def get_current_user(token: str = Depends(get_bearer_token)) -> dict[str, str]:
     try:
         row = connection.execute(
             """
-            SELECT id, email, display_name, role_preference, invite_code, created_at
+            SELECT id, email, display_name, role_preference, invite_code, created_at,
+                   gender, seeking_gender, sexual_orientation, identity_labels_json
             FROM users
             WHERE id = ?
             """,
             (user_id,),
         ).fetchone()
-        user = row_to_dict(row)
+        user = normalize_user_profile(row_to_dict(row))
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
         return user

@@ -411,6 +411,55 @@
   color: var(--text-base);
 }
 
+.dashboard-profile-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-profile-labels .ant-tag-checkable,
+.dashboard-profile-label-chip.ant-tag-checkable {
+  margin-inline-end: 0;
+  border-radius: 14px;
+  padding: 8px 14px;
+  min-height: 38px;
+  min-width: 58px;
+  line-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #111 !important;
+  background: rgba(255, 250, 244, 0.88);
+  color: var(--text-base);
+  font-weight: 600;
+  transition: all 180ms var(--ease-out);
+}
+
+.dashboard-profile-labels .ant-tag-checkable:hover,
+.dashboard-profile-label-chip.ant-tag-checkable:hover {
+  border-color: #111 !important;
+  color: var(--collar-deep);
+  transform: translateY(-1px);
+}
+
+.dashboard-profile-labels .ant-tag-checkable-checked,
+.dashboard-profile-label-chip.ant-tag-checkable-checked {
+  border-color: #111 !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, var(--collar), var(--collar-deep));
+  box-shadow: 0 8px 18px rgba(139,78,34,.24);
+}
+
+.dashboard-profile-labels .ant-tag-checkable-checked:hover,
+.dashboard-profile-labels .ant-tag-checkable-checked:active,
+.dashboard-profile-labels .ant-tag-checkable-checked:focus,
+.dashboard-profile-label-chip.ant-tag-checkable-checked:hover,
+.dashboard-profile-label-chip.ant-tag-checkable-checked:active,
+.dashboard-profile-label-chip.ant-tag-checkable-checked:focus {
+  color: #fff !important;
+  border-color: #111 !important;
+}
+
 /* ── Relationship Card ───────────────────────────────────── */
 .dashboard-relationship-card {
   border-radius: var(--r-xl) !important;

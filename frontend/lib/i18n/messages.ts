@@ -24,9 +24,16 @@ export type MessageKey =
   | "common.display_name"
   | "common.required_password_hint"
   | "common.role_preference"
+  | "common.gender"
+  | "common.seeking_gender"
+  | "common.sexual_orientation"
+  | "common.identity_labels"
   | "common.select_option"
   | "common.no_data"
   | "common.nothing_to_show"
+  | "profile.save"
+  | "profile.saving"
+  | "profile.save_done"
   | "error.generic_title"
   | "error.generic_description"
   | "error.page_crashed_title"
@@ -55,6 +62,25 @@ export type MessageKey =
   | "login.validation.display_name_required"
   | "role.owner"
   | "role.puppy"
+  | "gender.male"
+  | "gender.female"
+  | "gender.trans"
+  | "gender.non_binary"
+  | "gender.private"
+  | "seeking_gender.any"
+  | "orientation.hetero"
+  | "orientation.homo"
+  | "orientation.bi"
+  | "orientation.pan"
+  | "orientation.asexual"
+  | "orientation.questioning"
+  | "orientation.unspecified"
+  | "identity.lesbian"
+  | "identity.gay"
+  | "identity.femboy"
+  | "identity.ts"
+  | "identity.cd"
+  | "identity.4i"
   | "dashboard.title"
   | "dashboard.unauthenticated_title"
   | "dashboard.unauthenticated_description"
@@ -135,6 +161,7 @@ export type MessageKey =
   | "bind.source_register"
   | "bind.source_login"
   | "bind.tab_match"
+  | "bind.tab_profile"
   | "bind.tab_invite"
   | "bind.match_intro_label"
   | "bind.match_intro_placeholder"
@@ -231,9 +258,16 @@ const enMessages: Messages = {
   "common.display_name": "Display name",
   "common.required_password_hint": "At least 8 characters.",
   "common.role_preference": "Role preference",
+  "common.gender": "Gender",
+  "common.seeking_gender": "Seeking gender",
+  "common.sexual_orientation": "Sexual orientation",
+  "common.identity_labels": "Identity labels",
   "common.select_option": "Select an option",
   "common.no_data": "No data",
   "common.nothing_to_show": "Nothing to show yet.",
+  "profile.save": "Save profile",
+  "profile.saving": "Saving...",
+  "profile.save_done": "Profile updated.",
   "error.generic_title": "Something went wrong",
   "error.generic_description": "Please try again in a moment.",
   "error.page_crashed_title": "Page crashed",
@@ -262,6 +296,25 @@ const enMessages: Messages = {
   "login.validation.display_name_required": "Please enter your display name.",
   "role.owner": "Owner",
   "role.puppy": "Puppy",
+  "gender.male": "Male",
+  "gender.female": "Female",
+  "gender.trans": "Trans",
+  "gender.non_binary": "Non-binary",
+  "gender.private": "Private",
+  "seeking_gender.any": "Any",
+  "orientation.hetero": "Hetero",
+  "orientation.homo": "Homo",
+  "orientation.bi": "Bi",
+  "orientation.pan": "Pan",
+  "orientation.asexual": "Asexual",
+  "orientation.questioning": "Questioning",
+  "orientation.unspecified": "Unspecified",
+  "identity.lesbian": "Lesbian",
+  "identity.gay": "Gay",
+  "identity.femboy": "Femboy",
+  "identity.ts": "TS",
+  "identity.cd": "CD",
+  "identity.4i": "4爱",
   "dashboard.title": "Dashboard",
   "dashboard.unauthenticated_title": "Not logged in",
   "dashboard.unauthenticated_description": "Redirecting to login...",
@@ -342,6 +395,7 @@ const enMessages: Messages = {
   "bind.source_register": "Your account is ready. Start from binding.",
   "bind.source_login": "You are logged in. Finish binding to unlock the full flow.",
   "bind.tab_match": "Match plaza",
+  "bind.tab_profile": "My info",
   "bind.tab_invite": "Invite code",
   "bind.match_intro_label": "Your match intro",
   "bind.match_intro_placeholder": "Write a short intro so the other side knows who you are.",
@@ -569,6 +623,7 @@ const zhCNMessages: Messages = {
   "bind.counterpart_code_hint": "\u4e3b\u4eba\u548c\u5c0f\u72d7\u90fd\u53ef\u4ee5\u8f93\u5165\u5bf9\u65b9\u7684\u9080\u8bf7\u7801\u6765\u5b8c\u6210\u5339\u914d\u3002",
   "bind.puppy_waiting_hint": "\u8bf7\u627e\u4e3b\u4eba\u5e2e\u4f60\u5e26\u4e0a\u9879\u5708",
   "bind.tab_match": "\u5339\u914d\u5e7f\u573a",
+  "bind.tab_profile": "\u6211\u7684\u4fe1\u606f",
   "bind.tab_invite": "\u9080\u8bf7\u7801",
   "bind.match_intro_label": "\u4f60\u7684\u5339\u914d\u4ecb\u7ecd",
   "bind.match_intro_placeholder": "\u5199\u4e00\u53e5\u7b80\u77ed\u4ecb\u7ecd\uff0c\u8ba9\u5bf9\u65b9\u77e5\u9053\u4f60\u662f\u8c01\u3002",
@@ -599,7 +654,49 @@ const zhCNMessages: Messages = {
   "dashboard.task_submission_type.image": "\u56fe\u7247",
   "dashboard.task_submission_type.video": "\u89c6\u9891",
   "dashboard.submit_task_modal": "\u63d0\u4ea4\u4efb\u52a1",
+  "dashboard.task_submission_note": "\u63d0\u4ea4\u5907\u6ce8",
+  "dashboard.task_submission_media_url": "\u4e0a\u4f20\u6587\u4ef6",
+  "dashboard.task_submission_media_url_placeholder": "\u9009\u62e9\u56fe\u7247\u6216\u89c6\u9891\u6587\u4ef6",
+  "dashboard.task_submission_link": "\u6253\u5f00\u63d0\u4ea4\u5185\u5bb9",
   "dashboard.task_submission_note_placeholder": "\u53ef\u9009\uff1a\u7ed9\u4e3b\u4eba\u7684\u5907\u6ce8",
+  "bind.match_close_post": "\u5173\u95ed\u6211\u7684\u5e16\u5b50",
+  "bind.match_posts_title": "\u5f00\u653e\u5339\u914d\u5e16\u5b50",
+  "bind.match_send_request": "\u53d1\u9001\u9080\u8bf7",
+  "bind.match_message_placeholder": "\u53ef\u9009\u7559\u8a00",
+  "bind.match_inbox_title": "\u53d1\u7ed9\u6211\u7684\u9080\u8bf7",
+  "bind.match_sent_title": "\u6211\u53d1\u51fa\u7684\u9080\u8bf7",
+  "bind.match_no_posts": "\u6682\u65e0\u5f00\u653e\u5e16\u5b50\u3002",
+  "match.error_daily_limit_reached": "\u9080\u8bf7\u5931\u8d25\uff1a\u4eca\u65e5\u6b21\u6570\u5df2\u8fbe\u4e0a\u9650\uff085/5\uff09\u3002",
+  "match.error_blocked_by_target": "\u9080\u8bf7\u5931\u8d25\uff1a\u4f60\u5df2\u88ab\u5bf9\u65b9\u62c9\u9ed1\u3002",
+  "match.error_same_role_forbidden": "\u9080\u8bf7\u5931\u8d25\uff1a\u4e0d\u5141\u8bb8\u540c\u89d2\u8272\u5339\u914d\u3002",
+  "match.error_already_paired": "\u9080\u8bf7\u5931\u8d25\uff1a\u5bf9\u65b9\u5df2\u5b8c\u6210\u5339\u914d\u3002",
+  "match.error_request_rejected": "\u5bf9\u65b9\u5df2\u62d2\u7edd\u4f60\u7684\u9080\u8bf7\u3002",
+  "common.gender": "\u6027\u522b",
+  "common.seeking_gender": "\u60f3\u627e\u7684\u6027\u522b",
+  "common.sexual_orientation": "\u6027\u53d6\u5411",
+  "common.identity_labels": "\u8eab\u4efd\u6807\u7b7e",
+  "profile.save": "\u4fdd\u5b58\u8d44\u6599",
+  "profile.saving": "\u4fdd\u5b58\u4e2d...",
+  "profile.save_done": "\u8d44\u6599\u5df2\u66f4\u65b0\u3002",
+  "gender.male": "\u7537",
+  "gender.female": "\u5973",
+  "gender.trans": "\u8de8\u6027\u522b",
+  "gender.non_binary": "\u975e\u4e8c\u5143",
+  "gender.private": "\u4e0d\u516c\u5f00",
+  "seeking_gender.any": "\u4e0d\u9650",
+  "orientation.hetero": "\u5f02\u6027\u604b",
+  "orientation.homo": "\u540c\u6027\u604b",
+  "orientation.bi": "\u53cc\u6027\u604b",
+  "orientation.pan": "\u6cdb\u6027\u604b",
+  "orientation.asexual": "\u65e0\u6027\u604b",
+  "orientation.questioning": "\u63a2\u7d22\u4e2d",
+  "orientation.unspecified": "\u4e0d\u8bbe\u5b9a",
+  "identity.lesbian": "\u62c9\u62c9",
+  "identity.gay": "Gay",
+  "identity.femboy": "\u4f2a\u5a18",
+  "identity.ts": "TS",
+  "identity.cd": "CD",
+  "identity.4i": "4\u7231",
   "dashboard.reward_rule_hint": "\u4efb\u52a1\u901a\u8fc7\u540e\uff0c\u4e3b\u4eba\u548c\u5c0f\u72d7\u5404\u83b7\u5f971\u679a\u94f6\u5e01\uff0c\u6bcf\u5929\u6700\u591a5\u6b21\u3002",
   "dashboard.submitted_at": "\u63d0\u4ea4\u65f6\u95f4",
 };
@@ -745,6 +842,7 @@ const zhTWMessages: Messages = {
   "bind.counterpart_code_hint": "\u4e3b\u4eba\u548c\u5c0f\u72d7\u90fd\u53ef\u4ee5\u8f38\u5165\u5c0d\u65b9\u7684\u9080\u8acb\u78bc\u4f86\u5b8c\u6210\u914d\u5c0d\u3002",
   "bind.puppy_waiting_hint": "\u8acb\u627e\u4e3b\u4eba\u5e6b\u4f60\u6234\u4e0a\u9805\u5708",
   "bind.tab_match": "\u914d\u5c0d\u5ee3\u5834",
+  "bind.tab_profile": "\u6211\u7684\u8cc7\u8a0a",
   "bind.tab_invite": "\u9080\u8acb\u78bc",
   "bind.match_intro_label": "\u4f60\u7684\u914d\u5c0d\u4ecb\u7d39",
   "bind.match_intro_placeholder": "\u5beb\u4e00\u53e5\u7c21\u77ed\u4ecb\u7d39\uff0c\u8b93\u5c0d\u65b9\u77e5\u9053\u4f60\u662f\u8ab0\u3002",
@@ -775,7 +873,49 @@ const zhTWMessages: Messages = {
   "dashboard.task_submission_type.image": "\u5716\u7247",
   "dashboard.task_submission_type.video": "\u5f71\u7247",
   "dashboard.submit_task_modal": "\u63d0\u4ea4\u4efb\u52d9",
+  "dashboard.task_submission_note": "\u63d0\u4ea4\u5099\u8a3b",
+  "dashboard.task_submission_media_url": "\u4e0a\u50b3\u6a94\u6848",
+  "dashboard.task_submission_media_url_placeholder": "\u9078\u64c7\u5716\u7247\u6216\u5f71\u7247\u6a94\u6848",
+  "dashboard.task_submission_link": "\u958b\u555f\u63d0\u4ea4\u5167\u5bb9",
   "dashboard.task_submission_note_placeholder": "\u53ef\u9078\uff1a\u7d66\u4e3b\u4eba\u7684\u5099\u8a3b",
+  "bind.match_close_post": "\u95dc\u9589\u6211\u7684\u8cbc\u6587",
+  "bind.match_posts_title": "\u958b\u653e\u914d\u5c0d\u8cbc\u6587",
+  "bind.match_send_request": "\u767c\u9001\u9080\u8acb",
+  "bind.match_message_placeholder": "\u53ef\u9078\u7559\u8a00",
+  "bind.match_inbox_title": "\u767c\u7d66\u6211\u7684\u9080\u8acb",
+  "bind.match_sent_title": "\u6211\u9001\u51fa\u7684\u9080\u8acb",
+  "bind.match_no_posts": "\u66ab\u7121\u958b\u653e\u8cbc\u6587\u3002",
+  "match.error_daily_limit_reached": "\u9080\u8acb\u5931\u6557\uff1a\u4eca\u65e5\u6b21\u6578\u5df2\u9054\u4e0a\u9650\uff085/5\uff09\u3002",
+  "match.error_blocked_by_target": "\u9080\u8acb\u5931\u6557\uff1a\u4f60\u5df2\u88ab\u5c0d\u65b9\u5c01\u9396\u3002",
+  "match.error_same_role_forbidden": "\u9080\u8acb\u5931\u6557\uff1a\u4e0d\u5141\u8a31\u540c\u89d2\u8272\u914d\u5c0d\u3002",
+  "match.error_already_paired": "\u9080\u8acb\u5931\u6557\uff1a\u5c0d\u65b9\u5df2\u5b8c\u6210\u914d\u5c0d\u3002",
+  "match.error_request_rejected": "\u5c0d\u65b9\u5df2\u62d2\u7d55\u4f60\u7684\u9080\u8acb\u3002",
+  "common.gender": "\u6027\u5225",
+  "common.seeking_gender": "\u60f3\u627e\u7684\u6027\u5225",
+  "common.sexual_orientation": "\u6027\u53d6\u5411",
+  "common.identity_labels": "\u8eab\u4efd\u6a19\u7c64",
+  "profile.save": "\u5132\u5b58\u8cc7\u6599",
+  "profile.saving": "\u5132\u5b58\u4e2d...",
+  "profile.save_done": "\u8cc7\u6599\u5df2\u66f4\u65b0\u3002",
+  "gender.male": "\u7537",
+  "gender.female": "\u5973",
+  "gender.trans": "\u8de8\u6027\u5225",
+  "gender.non_binary": "\u975e\u4e8c\u5143",
+  "gender.private": "\u4e0d\u516c\u958b",
+  "seeking_gender.any": "\u4e0d\u9650",
+  "orientation.hetero": "\u7570\u6027\u6200",
+  "orientation.homo": "\u540c\u6027\u6200",
+  "orientation.bi": "\u96d9\u6027\u6200",
+  "orientation.pan": "\u6cdb\u6027\u6200",
+  "orientation.asexual": "\u7121\u6027\u6200",
+  "orientation.questioning": "\u63a2\u7d22\u4e2d",
+  "orientation.unspecified": "\u4e0d\u8a2d\u5b9a",
+  "identity.lesbian": "\u62c9\u62c9",
+  "identity.gay": "Gay",
+  "identity.femboy": "\u507d\u5a18",
+  "identity.ts": "TS",
+  "identity.cd": "CD",
+  "identity.4i": "4\u611b",
   "dashboard.reward_rule_hint": "\u4efb\u52d9\u901a\u904e\u5f8c\uff0c\u4e3b\u4eba\u8207\u5c0f\u72d7\u5404\u7372\u5f971\u679a\u786c\u5e63\uff0c\u6bcf\u65e5\u6700\u591a5\u6b21\u3002",
   "dashboard.submitted_at": "\u63d0\u4ea4\u6642\u9593",
 };
