@@ -18,6 +18,7 @@ export type MessageKey =
   | "common.logout"
   | "common.language"
   | "common.close"
+  | "common.confirm"
   | "common.email"
   | "common.password"
   | "common.display_name"
@@ -82,6 +83,7 @@ export type MessageKey =
   | "dashboard.reward_coins"
   | "dashboard.deadline"
   | "dashboard.no_deadline"
+  | "dashboard.clear_deadline"
   | "dashboard.task_submission_requirement"
   | "dashboard.task_submission_type.note"
   | "dashboard.task_submission_type.image"
@@ -223,6 +225,7 @@ const enMessages: Messages = {
   "common.logout": "Log out",
   "common.language": "Language",
   "common.close": "Close",
+  "common.confirm": "Confirm",
   "common.email": "Email",
   "common.password": "Password",
   "common.display_name": "Display name",
@@ -287,6 +290,7 @@ const enMessages: Messages = {
   "dashboard.reward_coins": "Reward coins",
   "dashboard.deadline": "Deadline",
   "dashboard.no_deadline": "No deadline",
+  "dashboard.clear_deadline": "Clear deadline",
   "dashboard.task_submission_requirement": "Required proof",
   "dashboard.task_submission_type.note": "Text note",
   "dashboard.task_submission_type.image": "Image",
@@ -428,6 +432,7 @@ const zhCNMessages: Messages = {
   "common.logout": "退出登录",
   "common.language": "语言",
   "common.close": "关闭",
+  "common.confirm": "确认",
   "common.email": "邮箱",
   "common.password": "密码",
   "common.display_name": "显示名称",
@@ -492,6 +497,7 @@ const zhCNMessages: Messages = {
   "dashboard.reward_coins": "奖励筹码",
   "dashboard.deadline": "服从时限",
   "dashboard.no_deadline": "不限时，等你慢慢完成",
+  "dashboard.clear_deadline": "清除时限",
   "dashboard.bind_relationship_modal": "建立专属关系",
   "dashboard.invite_code_placeholder": "输入那串只对你开放的邀请码",
   "dashboard.binding": "正在建立牵引...",
@@ -568,8 +574,12 @@ const zhCNMessages: Messages = {
   "bind.match_intro_placeholder": "\u5199\u4e00\u53e5\u7b80\u77ed\u4ecb\u7ecd\uff0c\u8ba9\u5bf9\u65b9\u77e5\u9053\u4f60\u662f\u8c01\u3002",
   "bind.match_create_post": "\u53d1\u5e03\u5230\u5e7f\u573a",
   "bind.match_pick_image": "\u9644\u4e0a\u56fe\u7247",
+  "bind.match_accept": "\u63a5\u53d7",
+  "bind.match_reject": "\u62d2\u7edd",
+  "bind.match_block": "\u62c9\u9ed1",
+  "bind.match_report": "\u4e3e\u62a5",
   "bind.match_pending_count": "\u5f85\u5904\u7406\u9080\u8bf7",
-  "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u53d1\u9001",
+  "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u53d1\u9001\u9080\u8bf7",
   "bind.match_status.pending": "\u5f85\u5904\u7406",
   "bind.match_status.accepted": "\u5df2\u63a5\u53d7",
   "bind.match_status.rejected": "\u5df2\u62d2\u7edd",
@@ -583,6 +593,7 @@ const zhCNMessages: Messages = {
   "bind.community_feed_empty": "\u8fd8\u6ca1\u6709\u52a8\u6001\uff0c\u6765\u53d1\u7b2c\u4e00\u6761\u5427\u3002",
   "bind.community_inbox_empty": "\u4f60\u7684\u6536\u4ef6\u7bb1\u6682\u65f6\u6ca1\u6709\u9080\u8bf7\u3002",
   "bind.community_mine_empty": "\u8fd8\u6ca1\u6709\u5728\u7ebf\u5e16\u5b50\u6216\u5df2\u53d1\u9001\u9080\u8bf7\u3002",
+  "dashboard.open_match_plaza": "\u524d\u5f80\u5339\u914d\u5e7f\u573a",
   "dashboard.task_submission_requirement": "\u63d0\u4ea4\u51ed\u8bc1",
   "dashboard.task_submission_type.note": "\u6587\u5b57\u8bf4\u660e",
   "dashboard.task_submission_type.image": "\u56fe\u7247",
@@ -610,6 +621,7 @@ const zhTWMessages: Messages = {
   "common.refresh": "重新整理",
   "common.logout": "登出",
   "common.close": "關閉",
+  "common.confirm": "確認",
   "common.email": "電子郵件",
   "common.password": "密碼",
   "common.display_name": "顯示名稱",
@@ -664,6 +676,7 @@ const zhTWMessages: Messages = {
   "dashboard.reward_coins": "獎勵籌碼",
   "dashboard.deadline": "服從時限",
   "dashboard.no_deadline": "不限時，等你慢慢完成",
+  "dashboard.clear_deadline": "清除時限",
   "dashboard.binding_done": "專屬關係已接通。",
   "dashboard.create_task_done": "命令已經發出，等對方回應。",
   "dashboard.submission_note": "小狗已從掌控台交出表現",
@@ -737,8 +750,12 @@ const zhTWMessages: Messages = {
   "bind.match_intro_placeholder": "\u5beb\u4e00\u53e5\u7c21\u77ed\u4ecb\u7d39\uff0c\u8b93\u5c0d\u65b9\u77e5\u9053\u4f60\u662f\u8ab0\u3002",
   "bind.match_create_post": "\u767c\u5e03\u5230\u5ee3\u5834",
   "bind.match_pick_image": "\u9644\u4e0a\u5716\u7247",
+  "bind.match_accept": "\u63a5\u53d7",
+  "bind.match_reject": "\u62d2\u7d55",
+  "bind.match_block": "\u5c01\u9396",
+  "bind.match_report": "\u6aa2\u8209",
   "bind.match_pending_count": "\u5f85\u8655\u7406\u9080\u8acb",
-  "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u9001\u51fa",
+  "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u9001\u51fa\u9080\u8acb",
   "bind.match_status.pending": "\u5f85\u8655\u7406",
   "bind.match_status.accepted": "\u5df2\u63a5\u53d7",
   "bind.match_status.rejected": "\u5df2\u62d2\u7d55",
@@ -752,6 +769,7 @@ const zhTWMessages: Messages = {
   "bind.community_feed_empty": "\u9084\u6c92\u6709\u52d5\u614b\uff0c\u4f86\u767c\u7b2c\u4e00\u5247\u5427\u3002",
   "bind.community_inbox_empty": "\u4f60\u7684\u6536\u4ef6\u7bb1\u66ab\u6642\u6c92\u6709\u9080\u8acb\u3002",
   "bind.community_mine_empty": "\u9084\u6c92\u6709\u4e0a\u7dda\u5e16\u6587\u6216\u5df2\u9001\u51fa\u7684\u9080\u8acb\u3002",
+  "dashboard.open_match_plaza": "\u524d\u5f80\u914d\u5c0d\u5ee3\u5834",
   "dashboard.task_submission_requirement": "\u63d0\u4ea4\u61d1\u8b49",
   "dashboard.task_submission_type.note": "\u6587\u5b57\u8aaa\u660e",
   "dashboard.task_submission_type.image": "\u5716\u7247",
@@ -780,6 +798,7 @@ const frMessages: Messages = {
   "common.logout": "Se deconnecter",
   "common.language": "Langue",
   "common.close": "Fermer",
+  "common.confirm": "Confirmer",
   "common.email": "E-mail",
   "common.password": "Mot de passe",
   "common.display_name": "Nom affiche",

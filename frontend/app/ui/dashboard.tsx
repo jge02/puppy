@@ -1148,11 +1148,11 @@ export default function Dashboard() {
   const unreadCount = unreadState?.unread_count || 0;
 
   const navItems: { key: DashboardSection; label: string; count?: number; icon: ReactNode }[] = [
-    { key: "overview", label: t("dashboard.nav.overview"), icon: <AppstoreOutlined /> },
-    { key: "tasks", label: t("dashboard.nav.tasks"), count: openTasks, icon: <OrderedListOutlined /> },
-    { key: "requests", label: t("dashboard.nav.requests"), count: pendingRequests, icon: <ClockCircleOutlined /> },
-    { key: "chat", label: chatCopy.title, count: unreadCount, icon: <MessageOutlined /> },
-    { key: "profile", label: t("dashboard.nav.profile"), icon: <UserOutlined /> },
+    { key: "overview", label: t("dashboard.nav.overview"), icon: <span style={{ fontSize: 18 }}>🏠</span> },
+    { key: "tasks", label: t("dashboard.nav.tasks"), count: openTasks, icon: <span style={{ fontSize: 18 }}>{isOwner ? "📋" : "🦴"}</span> },
+    { key: "requests", label: t("dashboard.nav.requests"), count: pendingRequests, icon: <span style={{ fontSize: 18 }}>📬</span> },
+    { key: "chat", label: chatCopy.title, count: unreadCount, icon: <span style={{ fontSize: 18 }}>💬</span> },
+    { key: "profile", label: t("dashboard.nav.profile"), icon: <span style={{ fontSize: 18 }}>{isOwner ? "👑" : "🐾"}</span> },
   ];
 
   const sectionHints: Record<DashboardSection, string> = {
@@ -1273,7 +1273,7 @@ export default function Dashboard() {
                 </div>
                 <Text type="secondary">{task.description}</Text>
               </div>
-              <div className="dashboard-list-item-reward">+1</div>
+              <div className="dashboard-list-item-reward">🪙 +1</div>
             </div>
             <div className="dashboard-list-meta">
               <Text type="secondary">{t("dashboard.deadline")}</Text>
@@ -1399,13 +1399,16 @@ export default function Dashboard() {
     >
       <header className="dashboard-topbar">
         <div className="dashboard-topbar-title">
-          <Title level={2}>{t("dashboard.title")}</Title>
+          <Title level={2}>
+            {me.user.role_preference === "owner" ? "🔗\u00a0" : "🐾\u00a0"}
+            {t("dashboard.title")}
+          </Title>
           <Text type="secondary">{me.user.email}</Text>
         </div>
         <Space wrap className="dashboard-topbar-actions">
           <LanguageSwitcher id="dashboard-language" />
           <Button icon={<ReloadOutlined />} onClick={() => void refreshData()}>{t("common.refresh")}</Button>
-          <Button icon={<LogoutOutlined />} onClick={logout}>{t("common.logout")}</Button>
+          <Button icon={<LogoutOutlined />} onClick={logout} danger>{t("common.logout")}</Button>
         </Space>
       </header>
 
@@ -1438,9 +1441,11 @@ export default function Dashboard() {
               <Sider width={280} breakpoint="lg" collapsedWidth={0} className="dashboard-sider">
                 <Card className={`dashboard-sider-card ${isOwner ? "is-owner" : "is-puppy"}`}>
                   <div className="dashboard-sider-head">
-                    <Text type="secondary">{counterpartRoleLabel}</Text>
+                    <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em" }}>
+                      {isOwner ? "🐾 " : "🔗 "}{counterpartRoleLabel}
+                    </Text>
                     <Title level={4}>{relationship.counterpart.display_name}</Title>
-                    <Text type="secondary">{sectionHints[activeSection]}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{sectionHints[activeSection]}</Text>
                   </div>
                   <Menu mode="inline" selectedKeys={[activeSection]} items={visibleMenuItems} onClick={({ key }) => setActiveSection(key as DashboardSection)} className="dashboard-menu" />
                 </Card>
@@ -1544,7 +1549,7 @@ export default function Dashboard() {
                       }))
                     }
                   >
-                    {t("dashboard.no_deadline")}
+                    {t("dashboard.clear_deadline")}
                   </Button>
                 ) : null}
               </div>
@@ -1606,18 +1611,21 @@ export default function Dashboard() {
             </Text>
           </div>
           <div className="dashboard-modal-actions">
-            <Button
-              onClick={() =>
-                setTaskForm((current) => ({
-                  ...current,
-                  deadline: "",
-                }))
-              }
-            >
-              {t("dashboard.no_deadline")}
-            </Button>
+            {taskForm.deadline ? (
+              <Button
+                className="dashboard-deadline-clear-btn"
+                onClick={() =>
+                  setTaskForm((current) => ({
+                    ...current,
+                    deadline: "",
+                  }))
+                }
+              >
+                {t("dashboard.clear_deadline")}
+              </Button>
+            ) : null}
             <Button type="primary" onClick={() => setShowDeadlinePicker(false)}>
-              {t("common.close")}
+              {t("common.confirm")}
             </Button>
           </div>
         </div>

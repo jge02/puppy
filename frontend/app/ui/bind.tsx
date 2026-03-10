@@ -299,7 +299,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
       }>,
       apiRequest("/match/requests/sent", { token: currentToken }) as Promise<{ requests: MatchRequestSentItem[] }>,
     ]);
-    setPosts(postsResponse.posts || []);
+    setPosts((postsResponse.posts || []).filter((post) => !post.has_pending_request));
     setInbox(inboxResponse.requests || []);
     setSent(sentResponse.requests || []);
     setPendingCount(inboxResponse.pending_count || 0);
@@ -549,11 +549,10 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   const renderFeedStream = () => (
     <section className="bind-community-stream" aria-label={t("bind.community_feed")}>
       {posts.length === 0 ? (
-        <Card className="bind-empty-card">
-          <CardBody>
-            <p className="bind-empty-title">{t("bind.community_feed_empty")}</p>
-          </CardBody>
-        </Card>
+        <div className="bind-empty-card">
+          <span className="bind-empty-icon">🐾</span>
+          <p className="bind-empty-title">{t("bind.community_feed_empty")}</p>
+        </div>
       ) : (
         posts.map((post, index) => (
           <Card key={post.id} className="bind-feed-card" style={{ animationDelay: `${index * 40}ms` }}>
@@ -564,7 +563,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
                   <strong>{post.display_name}</strong>
                   <span className="bind-feed-time">{formatDate(post.created_at, locale)}</span>
                 </div>
-                <Badge status="pending">{post.role_preference === "owner" ? t("role.owner") : t("role.puppy")}</Badge>
+                <Badge status="pending">{post.role_preference === "owner" ? `🔗 ${t("role.owner")}` : `🐾 ${t("role.puppy")}`}</Badge>
               </div>
 
               <p className="bind-feed-text">{post.intro}</p>
@@ -627,11 +626,10 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   const renderInboxStream = () => (
     <section className="bind-community-stream" aria-label={t("bind.community_inbox")}>
       {inbox.length === 0 ? (
-        <Card className="bind-empty-card">
-          <CardBody>
-            <p className="bind-empty-title">{t("bind.community_inbox_empty")}</p>
-          </CardBody>
-        </Card>
+        <div className="bind-empty-card">
+          <span className="bind-empty-icon">📭</span>
+          <p className="bind-empty-title">{t("bind.community_inbox_empty")}</p>
+        </div>
       ) : (
         inbox.map((item) => (
           <Card key={item.id} className="bind-feed-card bind-feed-card-inbox">
@@ -715,11 +713,10 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
       ) : null}
 
       {sent.length === 0 && !hasActivePost ? (
-        <Card className="bind-empty-card">
-          <CardBody>
-            <p className="bind-empty-title">{t("bind.community_mine_empty")}</p>
-          </CardBody>
-        </Card>
+        <div className="bind-empty-card">
+          <span className="bind-empty-icon">🏷️</span>
+          <p className="bind-empty-title">{t("bind.community_mine_empty")}</p>
+        </div>
       ) : (
         sent.map((item) => (
           <Card key={item.id} className="bind-feed-card bind-feed-card-sent">
@@ -745,102 +742,103 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
   return (
     <div className="bind-page">
       <header className="bind-header">
-        <div className="container bind-header-bar wrap-on-mobile">
+        <div className="bind-header-bar">
           <div>
-            <h1 className="bind-title">{t("bind.title")}</h1>
+            <h1 className="bind-title">
+              {isOwner ? "🔗\u00a0" : "🐾\u00a0"}
+              <em>{t("bind.title")}</em>
+            </h1>
             <p className="bind-subtitle">{t("bind.description")}</p>
           </div>
           <LanguageSwitcher id="bind-language" />
         </div>
       </header>
 
-      <main className="container bind-main">
+      <main className="bind-main">
         {sourceCopy ? (
-          <Card style={{ marginBottom: "var(--space-6)" }}>
-            <p className="bind-source">{sourceCopy}</p>
-          </Card>
+          <div className="bind-source-banner">{sourceCopy}</div>
         ) : null}
 
         {error ? (
-          <div style={{ marginBottom: "var(--space-6)" }}>
+          <div style={{ marginBottom: "16px" }}>
             <ErrorState title={t("common.request_failed")} description={error} />
           </div>
         ) : null}
 
         {notice ? (
-          <div style={{ marginBottom: "var(--space-6)" }}>
-            <Card>
-              <p style={{ margin: 0 }}>{notice}</p>
-            </Card>
-          </div>
+          <div className="bind-notice">{notice}</div>
         ) : null}
 
         <div className="bind-tabs">
-          <Button
+          <button
             type="button"
-            variant={activeTab === "match" ? "primary" : "secondary"}
-            role={isOwner ? "owner" : "puppy"}
+            className={`btn-tab${activeTab === "match" ? " is-active" : ""}`}
             onClick={() => setActiveTab("match")}
           >
-            {t("bind.tab_match")}
-          </Button>
-          <Button
+            {isOwner ? "🔗 " : "🐾 "}{t("bind.tab_match")}
+          </button>
+          <button
             type="button"
-            variant={activeTab === "invite" ? "primary" : "secondary"}
+            className={`btn-tab${activeTab === "invite" ? " is-active" : ""}`}
             onClick={() => setActiveTab("invite")}
           >
-            {t("bind.tab_invite")}
-          </Button>
+            🏷️ {t("bind.tab_invite")}
+          </button>
         </div>
 
         {activeTab === "match" ? (
           <>
-            <Card className="bind-community-head">
-              <CardBody>
+            <div className="bind-community-head">
+              <div className="bind-community-head-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "18px 20px", flexWrap: "wrap" }}>
                 <div className="bind-community-profile">
-                  <div className="bind-community-avatar">{getInitialLetter(me.user.display_name)}</div>
+                  <div className="bind-community-avatar">
+                    {isOwner ? "👑" : getInitialLetter(me.user.display_name)}
+                  </div>
                   <div>
                     <p className="bind-community-name">{me.user.display_name}</p>
                     <p className="bind-community-role">
-                      {me.user.role_preference === "owner" ? t("role.owner") : t("role.puppy")}
+                      {isOwner ? `🔗 ${t("role.owner")}` : `🐾 ${t("role.puppy")}`}
                     </p>
                   </div>
                 </div>
                 <div className="bind-community-stats">
                   <div className="bind-community-pill">
-                    <span>{t("bind.match_pending_count")}</span>
+                    <span>📬 {t("bind.match_pending_count")}</span>
                     <strong>{pendingCount}</strong>
                   </div>
                   <div className="bind-community-pill">
-                    <span>{t("bind.match_daily_usage")}</span>
+                    <span>💌 {t("bind.match_daily_usage")}</span>
                     <strong>{dailySentCount}/5</strong>
                   </div>
                 </div>
-              </CardBody>
-            </Card>
+              </div>
+            </div>
 
             <nav className="bind-community-nav" aria-label={t("bind.tab_match")}>
               <button
                 type="button"
+                data-icon="🐾"
                 className={`bind-community-nav-item${activeMatchView === "feed" ? " is-active" : ""}`}
                 onClick={() => setActiveMatchView("feed")}
               >
-                {t("bind.community_feed")}
+                🐾 {t("bind.community_feed")}
               </button>
               <button
                 type="button"
+                data-icon="📬"
                 className={`bind-community-nav-item${activeMatchView === "inbox" ? " is-active" : ""}`}
                 onClick={() => setActiveMatchView("inbox")}
               >
-                {t("bind.community_inbox")}
+                📬 {t("bind.community_inbox")}
                 {pendingCount > 0 ? <span className="bind-community-nav-count">{pendingCount}</span> : null}
               </button>
               <button
                 type="button"
+                data-icon="🏷️"
                 className={`bind-community-nav-item${activeMatchView === "mine" ? " is-active" : ""}`}
                 onClick={() => setActiveMatchView("mine")}
               >
-                {t("bind.community_mine")}
+                🏷️ {t("bind.community_mine")}
               </button>
             </nav>
 
@@ -858,7 +856,7 @@ export default function BindPanel({ source, tab }: BindPanelProps) {
               aria-label={t("bind.community_publish_post")}
               title={hasActivePost ? t("bind.match_close_post") : t("bind.community_publish_post")}
             >
-              +
+              🐾
             </button>
 
             {showComposer ? (

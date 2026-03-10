@@ -122,6 +122,7 @@ def list_match_posts(
         params: list[Any] = [current_user["id"]]
         if not include_mine:
             params.append(current_user["id"])
+        params.append(current_user["id"])
         params.extend([current_user["id"], current_user["id"], limit])
         rows = connection.execute(
             f"""
@@ -145,6 +146,13 @@ def list_match_posts(
             JOIN users u ON u.id = mp.user_id
             WHERE mp.status = 'active'
               {own_filter}
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM match_requests r2
+                  WHERE r2.post_id = mp.id
+                    AND r2.requester_id = ?
+                    AND r2.status = 'pending'
+              )
               AND NOT EXISTS (
                   SELECT 1 FROM match_blocks b
                   WHERE (b.blocker_user_id = mp.user_id AND b.blocked_user_id = ?)
