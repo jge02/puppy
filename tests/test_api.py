@@ -23,14 +23,26 @@ class PuppyApiTests(unittest.TestCase):
 
         from app.routes.auth import login, register
         from app.routes.chat import get_chat_messages, get_chat_unread, mark_chat_read
+        from app.routes.match import (
+            accept_match_request,
+            block_user,
+            create_match_post,
+            create_match_request,
+            list_match_request_inbox,
+            list_sent_match_requests,
+        )
         from app.routes.relationships import bind_by_invite
         from app.routes.task_requests import create_task_request, list_task_requests, reject_task_request
         from app.routes.tasks import approve_task, create_task, submit_task
         from app.schemas import (
+            BlockUserRequest,
             ChatReadRequest,
             CreateTaskRequestRequest,
             BindByInviteRequest,
+            CreateMatchPostRequest,
+            CreateMatchRequestRequest,
             CreateTaskRequest,
+            HandleMatchRequestRequest,
             LoginRequest,
             RejectTaskRequestRequest,
             RegisterRequest,
@@ -44,15 +56,25 @@ class PuppyApiTests(unittest.TestCase):
         self.mark_chat_read = mark_chat_read
         self.create_task_request_endpoint = create_task_request
         self.create_task = create_task
+        self.create_match_post = create_match_post
+        self.create_match_request = create_match_request
         self.list_task_requests = list_task_requests
+        self.list_match_request_inbox = list_match_request_inbox
+        self.list_sent_match_requests = list_sent_match_requests
         self.login_endpoint = login
+        self.accept_match_request = accept_match_request
+        self.block_user = block_user
         self.reject_task_request_endpoint = reject_task_request
         self.register_endpoint = register
         self.submit_task = submit_task
+        self.BlockUserRequest = BlockUserRequest
         self.BindByInviteRequest = BindByInviteRequest
         self.ChatReadRequest = ChatReadRequest
+        self.CreateMatchPostRequest = CreateMatchPostRequest
+        self.CreateMatchRequestRequest = CreateMatchRequestRequest
         self.CreateTaskRequest = CreateTaskRequest
         self.CreateTaskRequestRequest = CreateTaskRequestRequest
+        self.HandleMatchRequestRequest = HandleMatchRequestRequest
         self.LoginRequest = LoginRequest
         self.RejectTaskRequestRequest = RejectTaskRequestRequest
         self.RegisterRequest = RegisterRequest
@@ -410,6 +432,108 @@ class PuppyApiTests(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             self.get_chat_messages(relationship_id=relationship_id, current_user=outsider["user"])
         self.assertEqual(getattr(context.exception, "detail", None), "User is not part of this relationship.")
+
+    def test_match_same_role_is_forbidden(self) -> None:
+        owner_a = self.register("match-owner-a@example.com", "owner")
+        owner_b = self.register("match-owner-b@example.com", "owner")
+        post = self.create_match_post(
+            self.CreateMatchPostRequest(intro="Need a partner"),
+            current_user=owner_b["user"],
+        )
+
+        with self.assertRaises(Exception) as context:
+            self.create_match_request(
+                post["post"]["id"],
+                self.CreateMatchRequestRequest(message="hello"),
+                current_user=owner_a["user"],
+                user_timezone="America/Vancouver",
+            )
+        detail = getattr(context.exception, "detail", None)
+        self.assertIsInstance(detail, dict)
+        self.assertEqual(detail.get("code"), "MATCH_SAME_ROLE_FORBIDDEN")
+
+    def test_match_daily_limit_is_five(self) -> None:
+        requester = self.register("match-limit-puppy@example.com", "puppy")
+        owners = [self.register(f"match-owner-{index}@example.com", "owner") for index in range(6)]
+        posts = [
+            self.create_match_post(self.CreateMatchPostRequest(intro=f"post {index}"), current_user=owner["user"])
+            for index, owner in enumerate(owners)
+        ]
+
+        for index in range(5):
+            self.create_match_request(
+                posts[index]["post"]["id"],
+                self.CreateMatchRequestRequest(message="hello"),
+                current_user=requester["user"],
+                user_timezone="America/Vancouver",
+            )
+
+        with self.assertRaises(Exception) as context:
+            self.create_match_request(
+                posts[5]["post"]["id"],
+                self.CreateMatchRequestRequest(message="6th"),
+                current_user=requester["user"],
+                user_timezone="America/Vancouver",
+            )
+        detail = getattr(context.exception, "detail", None)
+        self.assertIsInstance(detail, dict)
+        self.assertEqual(detail.get("code"), "MATCH_DAILY_LIMIT_REACHED")
+
+    def test_match_block_returns_explicit_error(self) -> None:
+        owner = self.register("match-block-owner@example.com", "owner")
+        puppy = self.register("match-block-puppy@example.com", "puppy")
+        post = self.create_match_post(
+            self.CreateMatchPostRequest(intro="owner post"),
+            current_user=owner["user"],
+        )
+        self.block_user(
+            self.BlockUserRequest(target_user_id=puppy["user"]["id"], reason="no"),
+            current_user=owner["user"],
+        )
+
+        with self.assertRaises(Exception) as context:
+            self.create_match_request(
+                post["post"]["id"],
+                self.CreateMatchRequestRequest(message="please"),
+                current_user=puppy["user"],
+                user_timezone="America/Vancouver",
+            )
+        detail = getattr(context.exception, "detail", None)
+        self.assertIsInstance(detail, dict)
+        self.assertEqual(detail.get("code"), "MATCH_BLOCKED_BY_TARGET")
+
+    def test_first_accept_wins_and_rejects_others(self) -> None:
+        owner = self.register("match-accept-owner@example.com", "owner")
+        puppy_a = self.register("match-accept-puppy-a@example.com", "puppy")
+        puppy_b = self.register("match-accept-puppy-b@example.com", "puppy")
+        post = self.create_match_post(
+            self.CreateMatchPostRequest(intro="owner post"),
+            current_user=owner["user"],
+        )
+        req_a = self.create_match_request(
+            post["post"]["id"],
+            self.CreateMatchRequestRequest(message="a"),
+            current_user=puppy_a["user"],
+            user_timezone="America/Vancouver",
+        )
+        req_b = self.create_match_request(
+            post["post"]["id"],
+            self.CreateMatchRequestRequest(message="b"),
+            current_user=puppy_b["user"],
+            user_timezone="America/Vancouver",
+        )
+
+        self.accept_match_request(
+            req_a["request"]["id"],
+            self.HandleMatchRequestRequest(reason=None),
+            current_user=owner["user"],
+        )
+
+        inbox = self.list_match_request_inbox(current_user=owner["user"])
+        statuses = {item["id"]: item for item in inbox["requests"]}
+        self.assertEqual(statuses[req_a["request"]["id"]]["status"], "accepted")
+        self.assertEqual(statuses[req_b["request"]["id"]]["status"], "rejected")
+        self.assertEqual(statuses[req_b["request"]["id"]]["reject_reason_code"], "MATCH_ALREADY_PAIRED")
 
 
 if __name__ == "__main__":

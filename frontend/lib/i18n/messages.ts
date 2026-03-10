@@ -132,6 +132,43 @@ export type MessageKey =
   | "bind.open_dashboard"
   | "bind.source_register"
   | "bind.source_login"
+  | "bind.tab_match"
+  | "bind.tab_invite"
+  | "bind.match_intro_label"
+  | "bind.match_intro_placeholder"
+  | "bind.match_create_post"
+  | "bind.match_close_post"
+  | "bind.match_posts_title"
+  | "bind.match_send_request"
+  | "bind.match_message_placeholder"
+  | "bind.match_inbox_title"
+  | "bind.match_sent_title"
+  | "bind.match_accept"
+  | "bind.match_reject"
+  | "bind.match_block"
+  | "bind.match_report"
+  | "bind.match_pending_count"
+  | "bind.match_daily_usage"
+  | "bind.match_no_posts"
+  | "bind.match_status.pending"
+  | "bind.match_status.accepted"
+  | "bind.match_status.rejected"
+  | "bind.match_status.cancelled"
+  | "bind.community_feed"
+  | "bind.community_inbox"
+  | "bind.community_mine"
+  | "bind.community_publish_post"
+  | "bind.community_publish_title"
+  | "bind.community_publish_hint"
+  | "bind.community_feed_empty"
+  | "bind.community_inbox_empty"
+  | "bind.community_mine_empty"
+  | "dashboard.open_match_plaza"
+  | "match.error_daily_limit_reached"
+  | "match.error_blocked_by_target"
+  | "match.error_same_role_forbidden"
+  | "match.error_already_paired"
+  | "match.error_request_rejected"
   | "dashboard.request_task"
   | "dashboard.task_request_modal"
   | "dashboard.task_request_title"
@@ -299,6 +336,43 @@ const enMessages: Messages = {
   "bind.open_dashboard": "Open dashboard",
   "bind.source_register": "Your account is ready. Start from binding.",
   "bind.source_login": "You are logged in. Finish binding to unlock the full flow.",
+  "bind.tab_match": "Match plaza",
+  "bind.tab_invite": "Invite code",
+  "bind.match_intro_label": "Your match intro",
+  "bind.match_intro_placeholder": "Write a short intro so the other side knows who you are.",
+  "bind.match_create_post": "Publish in plaza",
+  "bind.match_close_post": "Close my post",
+  "bind.match_posts_title": "Open match posts",
+  "bind.match_send_request": "Send invite",
+  "bind.match_message_placeholder": "Optional message",
+  "bind.match_inbox_title": "Invites for me",
+  "bind.match_sent_title": "Invites I sent",
+  "bind.match_accept": "Accept",
+  "bind.match_reject": "Reject",
+  "bind.match_block": "Block",
+  "bind.match_report": "Report",
+  "bind.match_pending_count": "Pending invites",
+  "bind.match_daily_usage": "Today sent",
+  "bind.match_no_posts": "No open posts yet.",
+  "bind.match_status.pending": "Pending",
+  "bind.match_status.accepted": "Accepted",
+  "bind.match_status.rejected": "Rejected",
+  "bind.match_status.cancelled": "Cancelled",
+  "bind.community_feed": "Feed",
+  "bind.community_inbox": "Inbox",
+  "bind.community_mine": "Mine",
+  "bind.community_publish_post": "Publish post",
+  "bind.community_publish_title": "Publish to match plaza",
+  "bind.community_publish_hint": "Write a short intro so the right person can find you faster.",
+  "bind.community_feed_empty": "No posts yet. Be the first to publish.",
+  "bind.community_inbox_empty": "No invites in your inbox yet.",
+  "bind.community_mine_empty": "No active post or sent invites yet.",
+  "dashboard.open_match_plaza": "Go to match plaza",
+  "match.error_daily_limit_reached": "Invite failed: daily limit reached (5/5).",
+  "match.error_blocked_by_target": "Invite failed: you are blocked by this user.",
+  "match.error_same_role_forbidden": "Invite failed: same-role matching is not allowed.",
+  "match.error_already_paired": "Invite failed: this user is already paired.",
+  "match.error_request_rejected": "Invite rejected by this user.",
   "dashboard.request_task": "Ask for a task",
   "dashboard.task_request_modal": "Ask for a task",
   "dashboard.task_request_title": "What do you want to ask for?",
@@ -486,6 +560,26 @@ const zhCNMessages: Messages = {
   "bind.enter_counterpart_code": "\u8f93\u5165\u5bf9\u65b9\u7684\u4e13\u5c5e\u9080\u8bf7\u7801",
   "bind.counterpart_code_hint": "\u4e3b\u4eba\u548c\u5c0f\u72d7\u90fd\u53ef\u4ee5\u8f93\u5165\u5bf9\u65b9\u7684\u9080\u8bf7\u7801\u6765\u5b8c\u6210\u5339\u914d\u3002",
   "bind.puppy_waiting_hint": "\u8bf7\u627e\u4e3b\u4eba\u5e2e\u4f60\u5e26\u4e0a\u9879\u5708",
+  "bind.tab_match": "\u5339\u914d\u5e7f\u573a",
+  "bind.tab_invite": "\u9080\u8bf7\u7801",
+  "bind.match_intro_label": "\u4f60\u7684\u5339\u914d\u4ecb\u7ecd",
+  "bind.match_intro_placeholder": "\u5199\u4e00\u53e5\u7b80\u77ed\u4ecb\u7ecd\uff0c\u8ba9\u5bf9\u65b9\u77e5\u9053\u4f60\u662f\u8c01\u3002",
+  "bind.match_create_post": "\u53d1\u5e03\u5230\u5e7f\u573a",
+  "bind.match_pending_count": "\u5f85\u5904\u7406\u9080\u8bf7",
+  "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u53d1\u9001",
+  "bind.match_status.pending": "\u5f85\u5904\u7406",
+  "bind.match_status.accepted": "\u5df2\u63a5\u53d7",
+  "bind.match_status.rejected": "\u5df2\u62d2\u7edd",
+  "bind.match_status.cancelled": "\u5df2\u53d6\u6d88",
+  "bind.community_feed": "\u63a8\u8350",
+  "bind.community_inbox": "\u6536\u4ef6",
+  "bind.community_mine": "\u6211\u7684",
+  "bind.community_publish_post": "\u53d1\u5e03\u52a8\u6001",
+  "bind.community_publish_title": "\u53d1\u5e03\u5230\u5339\u914d\u5e7f\u573a",
+  "bind.community_publish_hint": "\u5199\u4e00\u53e5\u7b80\u77ed\u4ecb\u7ecd\uff0c\u8ba9\u5bf9\u65b9\u66f4\u5bb9\u6613\u627e\u5230\u4f60\u3002",
+  "bind.community_feed_empty": "\u8fd8\u6ca1\u6709\u52a8\u6001\uff0c\u6765\u53d1\u7b2c\u4e00\u6761\u5427\u3002",
+  "bind.community_inbox_empty": "\u4f60\u7684\u6536\u4ef6\u7bb1\u6682\u65f6\u6ca1\u6709\u9080\u8bf7\u3002",
+  "bind.community_mine_empty": "\u8fd8\u6ca1\u6709\u5728\u7ebf\u5e16\u5b50\u6216\u5df2\u53d1\u9001\u9080\u8bf7\u3002",
   "dashboard.task_submission_requirement": "\u63d0\u4ea4\u51ed\u8bc1",
   "dashboard.task_submission_type.note": "\u6587\u5b57\u8bf4\u660e",
   "dashboard.task_submission_type.image": "\u56fe\u7247",
@@ -634,6 +728,26 @@ const zhTWMessages: Messages = {
   "bind.enter_counterpart_code": "\u8f38\u5165\u5c0d\u65b9\u7684\u5c08\u5c6c\u9080\u8acb\u78bc",
   "bind.counterpart_code_hint": "\u4e3b\u4eba\u548c\u5c0f\u72d7\u90fd\u53ef\u4ee5\u8f38\u5165\u5c0d\u65b9\u7684\u9080\u8acb\u78bc\u4f86\u5b8c\u6210\u914d\u5c0d\u3002",
   "bind.puppy_waiting_hint": "\u8acb\u627e\u4e3b\u4eba\u5e6b\u4f60\u6234\u4e0a\u9805\u5708",
+  "bind.tab_match": "\u914d\u5c0d\u5ee3\u5834",
+  "bind.tab_invite": "\u9080\u8acb\u78bc",
+  "bind.match_intro_label": "\u4f60\u7684\u914d\u5c0d\u4ecb\u7d39",
+  "bind.match_intro_placeholder": "\u5beb\u4e00\u53e5\u7c21\u77ed\u4ecb\u7d39\uff0c\u8b93\u5c0d\u65b9\u77e5\u9053\u4f60\u662f\u8ab0\u3002",
+  "bind.match_create_post": "\u767c\u5e03\u5230\u5ee3\u5834",
+  "bind.match_pending_count": "\u5f85\u8655\u7406\u9080\u8acb",
+  "bind.match_daily_usage": "\u4eca\u65e5\u5df2\u9001\u51fa",
+  "bind.match_status.pending": "\u5f85\u8655\u7406",
+  "bind.match_status.accepted": "\u5df2\u63a5\u53d7",
+  "bind.match_status.rejected": "\u5df2\u62d2\u7d55",
+  "bind.match_status.cancelled": "\u5df2\u53d6\u6d88",
+  "bind.community_feed": "\u63a8\u85a6",
+  "bind.community_inbox": "\u6536\u4ef6",
+  "bind.community_mine": "\u6211\u7684",
+  "bind.community_publish_post": "\u767c\u5e03\u52d5\u614b",
+  "bind.community_publish_title": "\u767c\u5e03\u5230\u914d\u5c0d\u5ee3\u5834",
+  "bind.community_publish_hint": "\u5beb\u4e00\u53e5\u7c21\u77ed\u4ecb\u7d39\uff0c\u8b93\u5c0d\u65b9\u66f4\u5bb9\u6613\u627e\u5230\u4f60\u3002",
+  "bind.community_feed_empty": "\u9084\u6c92\u6709\u52d5\u614b\uff0c\u4f86\u767c\u7b2c\u4e00\u5247\u5427\u3002",
+  "bind.community_inbox_empty": "\u4f60\u7684\u6536\u4ef6\u7bb1\u66ab\u6642\u6c92\u6709\u9080\u8acb\u3002",
+  "bind.community_mine_empty": "\u9084\u6c92\u6709\u4e0a\u7dda\u5e16\u6587\u6216\u5df2\u9001\u51fa\u7684\u9080\u8acb\u3002",
   "dashboard.task_submission_requirement": "\u63d0\u4ea4\u61d1\u8b49",
   "dashboard.task_submission_type.note": "\u6587\u5b57\u8aaa\u660e",
   "dashboard.task_submission_type.image": "\u5716\u7247",

@@ -46,6 +46,29 @@ class BindByInviteRequest(BaseModel):
     invite_code: str = Field(min_length=4, max_length=32)
 
 
+class CreateMatchPostRequest(BaseModel):
+    intro: str = Field(min_length=1, max_length=300)
+
+
+class CreateMatchRequestRequest(BaseModel):
+    message: str | None = Field(default=None, max_length=300)
+
+
+class HandleMatchRequestRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=300)
+
+
+class BlockUserRequest(BaseModel):
+    target_user_id: str
+    reason: str | None = Field(default=None, max_length=300)
+
+
+class ReportMatchRequest(BaseModel):
+    target_user_id: str
+    request_id: str | None = None
+    reason: str = Field(min_length=1, max_length=300)
+
+
 class CreateTaskRequest(BaseModel):
     relationship_id: str
     task_request_id: str | None = None

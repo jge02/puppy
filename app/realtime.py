@@ -107,6 +107,54 @@ class ChatConnectionManager:
 chat_manager = ChatConnectionManager()
 
 
+class UserConnectionManager:
+    def __init__(self) -> None:
+        self._connections: dict[str, set[WebSocket]] = defaultdict(set)
+        self._lock = asyncio.Lock()
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop
+
+    async def connect(self, user_id: str, websocket: WebSocket) -> None:
+        await websocket.accept()
+        async with self._lock:
+            self._connections[user_id].add(websocket)
+
+    async def disconnect(self, user_id: str, websocket: WebSocket) -> None:
+        async with self._lock:
+            sockets = self._connections.get(user_id)
+            if not sockets:
+                return
+            sockets.discard(websocket)
+            if not sockets:
+                self._connections.pop(user_id, None)
+
+    async def send_to_user(self, user_id: str, payload: dict[str, Any]) -> None:
+        async with self._lock:
+            sockets = list(self._connections.get(user_id, set()))
+        stale: list[WebSocket] = []
+        for socket in sockets:
+            try:
+                await socket.send_json(payload)
+            except Exception:
+                stale.append(socket)
+        for socket in stale:
+            await self.disconnect(user_id, socket)
+
+    def run_background(self, awaitable: Awaitable[Any]) -> None:
+        if self._loop is None:
+            try:
+                asyncio.run(awaitable)
+            except Exception:
+                pass
+            return
+        asyncio.run_coroutine_threadsafe(awaitable, self._loop)
+
+
+notification_manager = UserConnectionManager()
+
+
 def ensure_relationship_access(relationship_id: str, user_id: str) -> dict[str, Any]:
     connection = get_connection()
     try:

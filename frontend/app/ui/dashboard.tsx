@@ -1418,7 +1418,12 @@ export default function Dashboard() {
               <Title level={3}>{t("dashboard.no_relationship_title")}</Title>
               <Text type="secondary">{isSkipped ? t("dashboard.binding_reminder") : t("dashboard.no_relationship_description")}</Text>
             </div>
-            <Button type="primary" icon={<LinkOutlined />} onClick={() => router.replace("/bind")}>{t("dashboard.bind_by_invite")}</Button>
+            <Space wrap>
+              <Button type="primary" icon={<LinkOutlined />} onClick={() => router.replace("/bind?tab=match")}>
+                {t("dashboard.open_match_plaza")}
+              </Button>
+              <Button onClick={() => router.replace("/bind?tab=invite")}>{t("dashboard.bind_by_invite")}</Button>
+            </Space>
           </div>
           <div className="dashboard-info-grid">
             <div className="dashboard-info-row"><Text type="secondary">{t("common.display_name")}</Text><strong>{me.user.display_name}</strong></div>

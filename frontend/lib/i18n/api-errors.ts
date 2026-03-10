@@ -1,6 +1,6 @@
 import type { MessageKey } from "./messages";
 
-const apiErrorMap: Record<string, MessageKey> = {
+const apiErrorMessageMap: Record<string, MessageKey> = {
   "Email already registered.": "common.error_email_registered",
   "Invalid email or password.": "common.error_invalid_credentials",
   "Invite code not found.": "common.error_invite_code_not_found",
@@ -43,10 +43,37 @@ const apiErrorMap: Record<string, MessageKey> = {
   "Task request update conflict.": "common.error_occurred",
 };
 
+const apiErrorCodeMap: Record<string, MessageKey> = {
+  MATCH_DAILY_LIMIT_REACHED: "match.error_daily_limit_reached",
+  MATCH_BLOCKED_BY_TARGET: "match.error_blocked_by_target",
+  MATCH_SAME_ROLE_FORBIDDEN: "match.error_same_role_forbidden",
+  MATCH_ALREADY_PAIRED: "match.error_already_paired",
+  MATCH_REQUEST_REJECTED: "match.error_request_rejected",
+};
+
+type ApiDetail = {
+  code?: string;
+  message?: string;
+};
+
 export function translateApiError(
-  detail: string,
+  detail: unknown,
   t: (key: MessageKey) => string
 ): string {
-  const key = apiErrorMap[detail];
-  return key ? t(key) : t("common.error_occurred");
+  if (detail && typeof detail === "object") {
+    const parsed = detail as ApiDetail;
+    if (parsed.code && apiErrorCodeMap[parsed.code]) {
+      return t(apiErrorCodeMap[parsed.code]);
+    }
+    if (parsed.message && apiErrorMessageMap[parsed.message]) {
+      return t(apiErrorMessageMap[parsed.message]);
+    }
+  }
+  if (typeof detail === "string") {
+    const key = apiErrorMessageMap[detail];
+    if (key) {
+      return t(key);
+    }
+  }
+  return t("common.error_occurred");
 }

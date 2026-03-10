@@ -319,6 +319,54 @@ def init_db() -> None:
                 FOREIGN KEY (handled_by) REFERENCES users(id)
             );
 
+            CREATE TABLE IF NOT EXISTS match_posts (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                role_preference TEXT NOT NULL CHECK (role_preference IN ('owner', 'puppy')),
+                intro TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('active', 'closed', 'matched')),
+                created_at TEXT NOT NULL,
+                expires_at TEXT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS match_requests (
+                id TEXT PRIMARY KEY,
+                post_id TEXT NOT NULL,
+                requester_id TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'cancelled')),
+                message TEXT NULL,
+                reject_reason_code TEXT NULL,
+                created_at TEXT NOT NULL,
+                handled_at TEXT NULL,
+                FOREIGN KEY (post_id) REFERENCES match_posts(id),
+                FOREIGN KEY (requester_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS match_blocks (
+                id TEXT PRIMARY KEY,
+                blocker_user_id TEXT NOT NULL,
+                blocked_user_id TEXT NOT NULL,
+                reason TEXT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (blocker_user_id) REFERENCES users(id),
+                FOREIGN KEY (blocked_user_id) REFERENCES users(id),
+                CHECK (blocker_user_id <> blocked_user_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS match_reports (
+                id TEXT PRIMARY KEY,
+                reporter_user_id TEXT NOT NULL,
+                target_user_id TEXT NOT NULL,
+                request_id TEXT NULL,
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (reporter_user_id) REFERENCES users(id),
+                FOREIGN KEY (target_user_id) REFERENCES users(id),
+                FOREIGN KEY (request_id) REFERENCES match_requests(id),
+                CHECK (reporter_user_id <> target_user_id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_relationships_owner_id ON relationships(owner_id);
             CREATE INDEX IF NOT EXISTS idx_relationships_puppy_id ON relationships(puppy_id);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_relationships_active_owner
@@ -341,6 +389,23 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_task_requests_status ON task_requests(status);
             CREATE INDEX IF NOT EXISTS idx_task_requests_relationship_status
                 ON task_requests(relationship_id, status);
+
+            CREATE INDEX IF NOT EXISTS idx_match_posts_status_created
+                ON match_posts(status, created_at);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_match_posts_user_active
+                ON match_posts(user_id)
+                WHERE status = 'active';
+            CREATE INDEX IF NOT EXISTS idx_match_requests_post_status
+                ON match_requests(post_id, status);
+            CREATE INDEX IF NOT EXISTS idx_match_requests_requester_created
+                ON match_requests(requester_id, created_at);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_match_requests_pending_pair
+                ON match_requests(post_id, requester_id)
+                WHERE status = 'pending';
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_match_blocks_pair
+                ON match_blocks(blocker_user_id, blocked_user_id);
+            CREATE INDEX IF NOT EXISTS idx_match_reports_target_created
+                ON match_reports(target_user_id, created_at);
 
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id TEXT PRIMARY KEY,
@@ -401,6 +466,8 @@ def init_db() -> None:
             )
         if not _column_exists(connection, "task_submissions", "media_url"):
             connection.execute("ALTER TABLE task_submissions ADD COLUMN media_url TEXT NULL")
+        if _table_exists(connection, "match_requests") and not _column_exists(connection, "match_requests", "reject_reason_code"):
+            connection.execute("ALTER TABLE match_requests ADD COLUMN reject_reason_code TEXT NULL")
         connection.commit()
     finally:
         connection.close()
