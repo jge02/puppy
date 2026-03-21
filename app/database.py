@@ -228,36 +228,46 @@ def _migrate_users_role_preference(connection: sqlite3.Connection) -> None:
 
 
 _DEFAULT_SHOP_ITEMS = [
-    ("bottle_glass", "bottle_theme", "玻璃瓶", "经典透明玻璃瓶，简洁优雅", 0, 0),
-    ("bottle_ocean", "bottle_theme", "海洋瓶", "深海蓝色调，海浪纹理", 30, 1),
-    ("bottle_candy", "bottle_theme", "糖果瓶", "粉彩糖果色，甜蜜可爱", 30, 2),
-    ("bottle_mecha", "bottle_theme", "机械瓶", "赛博朋克金属质感", 50, 3),
-    ("orb_bubble", "orb_skin", "泡泡球", "晶莹剔透的泡泡效果", 0, 0),
-    ("orb_star", "orb_skin", "星星球", "闪亮星形小球", 20, 1),
-    ("orb_neon", "orb_skin", "霓虹球", "发光霓虹色彩", 40, 2),
-    ("orb_jelly", "orb_skin", "果冻球", "软萌果冻质感", 20, 3),
-    ("bg_default", "dashboard_bg", "默认背景", "简洁深色背景", 0, 0),
-    ("bg_aurora", "dashboard_bg", "极光背景", "绚丽北极光渐变", 40, 1),
-    ("bg_sakura", "dashboard_bg", "樱花背景", "粉色樱花飘落", 40, 2),
-    ("anim_default", "entry_animation", "默认入瓶", "小球平滑落入", 0, 0),
-    ("anim_burst", "entry_animation", "爆炸入瓶", "烟花爆炸效果", 30, 1),
-    ("anim_spiral", "entry_animation", "螺旋入瓶", "螺旋旋转落入", 30, 2),
-    ("frame_basic", "avatar_frame", "基础边框", "简洁圆形边框", 0, 0),
-    ("frame_gold", "avatar_frame", "金色边框", "金色光芒边框", 60, 1),
-    ("badge_diligent", "badge", "勤勉徽章", "连续完成7天任务", 0, 0),
-    ("title_beginner", "title_item", "新手主人", "刚刚开始的旅程", 0, 0),
-    ("title_veteran", "title_item", "资深主人", "完成50个任务解锁", 80, 1),
+    ("bottle_glass", "bottle_theme", "玻璃瓶", "经典透明玻璃瓶，简洁优雅", 0, 0, 1),
+    ("bottle_ocean", "bottle_theme", "海洋瓶", "深海蓝色调，海浪纹理", 30, 1, 0),
+    ("bottle_candy", "bottle_theme", "糖果瓶", "粉彩糖果色，甜蜜可爱", 30, 2, 0),
+    ("bottle_mecha", "bottle_theme", "机械瓶", "赛博朋克金属质感", 50, 3, 0),
+    ("orb_bubble", "orb_skin", "泡泡球", "晶莹剔透的泡泡效果", 0, 0, 1),
+    ("orb_star", "orb_skin", "星星球", "闪亮星形小球", 20, 1, 0),
+    ("orb_neon", "orb_skin", "霓虹球", "发光霓虹色彩", 40, 2, 0),
+    ("orb_jelly", "orb_skin", "果冻球", "软萌果冻质感", 20, 3, 0),
+    ("bg_default", "dashboard_bg", "默认背景", "简洁深色背景", 0, 0, 1),
+    ("bg_aurora", "dashboard_bg", "极光背景", "绚丽北极光渐变", 40, 1, 0),
+    ("bg_sakura", "dashboard_bg", "樱花背景", "粉色樱花飘落", 40, 2, 0),
+    ("anim_default", "entry_animation", "默认入瓶", "小球平滑落入", 0, 0, 1),
+    ("anim_burst", "entry_animation", "爆炸入瓶", "烟花爆炸效果", 30, 1, 0),
+    ("anim_spiral", "entry_animation", "螺旋入瓶", "螺旋旋转落入", 30, 2, 0),
+    ("frame_basic", "avatar_frame", "基础边框", "简洁圆形边框", 0, 0, 0),
+    ("frame_gold", "avatar_frame", "金色边框", "金色光芒边框", 60, 1, 0),
+    ("badge_diligent", "badge", "勤勉徽章", "连续完成7天任务", 0, 0, 0),
+    ("title_beginner", "title_item", "新手主人", "刚刚开始的旅程", 0, 0, 0),
+    ("title_veteran", "title_item", "资深主人", "完成50个任务解锁", 80, 1, 0),
 ]
 
 
 def _seed_shop_items(connection: sqlite3.Connection) -> None:
-    for item_id, item_type, name, description, price_coins, sort_order in _DEFAULT_SHOP_ITEMS:
+    for item_id, item_type, name, description, price_coins, sort_order, is_default in _DEFAULT_SHOP_ITEMS:
         connection.execute(
             """
-            INSERT OR IGNORE INTO shop_items (id, item_type, name, description, price_coins, sort_order, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT OR IGNORE INTO shop_items (
+                id, item_type, name, description, price_coins, sort_order, is_active, is_default
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?)
             """,
-            (item_id, item_type, name, description, price_coins, sort_order),
+            (item_id, item_type, name, description, price_coins, sort_order, is_default),
+        )
+        connection.execute(
+            """
+            UPDATE shop_items
+            SET is_default = ?
+            WHERE id = ?
+            """,
+            (is_default, item_id),
         )
 
 
@@ -517,6 +527,7 @@ def init_db() -> None:
                 price_coins INTEGER NOT NULL CHECK (price_coins >= 0),
                 preview_url TEXT NULL,
                 sort_order INTEGER NOT NULL DEFAULT 0,
+                is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
                 is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
             );
 
@@ -608,6 +619,14 @@ def init_db() -> None:
             )
         if _table_exists(connection, "users") and not _column_exists(connection, "users", "identity_labels_json"):
             connection.execute("ALTER TABLE users ADD COLUMN identity_labels_json TEXT NOT NULL DEFAULT '[]'")
+        if _table_exists(connection, "shop_items") and not _column_exists(connection, "shop_items", "is_default"):
+            connection.execute(
+                """
+                ALTER TABLE shop_items
+                ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0
+                    CHECK (is_default IN (0, 1))
+                """
+            )
         connection.commit()
     finally:
         connection.close()

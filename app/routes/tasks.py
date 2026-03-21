@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -26,6 +27,24 @@ router = APIRouter()
 TASK_SUBMISSION_UPLOADS_DIR = BASE_DIR / "uploads" / "task-submissions"
 TASK_REWARD_COINS = 1
 DAILY_TASK_REWARD_LIMIT = 5
+
+
+def _resolve_task_submission_max_file_size_bytes() -> int | None:
+    raw_value = os.getenv("PUPPY_TASK_SUBMISSION_MAX_FILE_SIZE_MB") or os.getenv(
+        "NEXT_PUBLIC_TASK_SUBMISSION_MAX_FILE_SIZE_MB"
+    )
+    if not raw_value or not raw_value.strip():
+        return None
+    try:
+        parsed_value = float(raw_value)
+    except ValueError:
+        return None
+    if parsed_value <= 0:
+        return None
+    return int(parsed_value * 1024 * 1024)
+
+
+TASK_SUBMISSION_MAX_FILE_SIZE_BYTES = _resolve_task_submission_max_file_size_bytes()
 
 
 def _get_reward_window_bounds(now_iso: str) -> tuple[str, str]:
@@ -72,12 +91,27 @@ def _store_submission_file(task_id: str, media_file: UploadFile, expected_type: 
     stored_name = f"{task_id}_{uuid.uuid4().hex}{suffix}"
     stored_path = TASK_SUBMISSION_UPLOADS_DIR / stored_name
 
-    with stored_path.open("wb") as output_file:
-        while True:
-            chunk = media_file.file.read(1024 * 1024)
-            if not chunk:
-                break
-            output_file.write(chunk)
+    bytes_written = 0
+    try:
+        with stored_path.open("wb") as output_file:
+            while True:
+                chunk = media_file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                bytes_written += len(chunk)
+                if (
+                    TASK_SUBMISSION_MAX_FILE_SIZE_BYTES is not None
+                    and bytes_written > TASK_SUBMISSION_MAX_FILE_SIZE_BYTES
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="Uploaded file exceeds the allowed size limit.",
+                    )
+                output_file.write(chunk)
+    except Exception:
+        if stored_path.exists():
+            stored_path.unlink()
+        raise
 
     return f"/uploads/task-submissions/{stored_name}"
 

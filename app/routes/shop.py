@@ -46,7 +46,7 @@ def list_shop_items(current_user: dict[str, Any] = Depends(get_current_user)) ->
         items = []
         for row in rows:
             item = dict(row)
-            item["owned"] = item["id"] in owned_ids
+            item["owned"] = bool(item.get("is_default")) or item["id"] in owned_ids
             items.append(item)
         return {"items": items}
     finally:
@@ -139,7 +139,7 @@ def equip_item(
 ) -> dict[str, Any]:
     with transactional_connection() as connection:
         item_row = connection.execute(
-            "SELECT * FROM shop_items WHERE id = ?",
+            "SELECT * FROM shop_items WHERE id = ? AND is_active = 1",
             (payload.item_id,),
         ).fetchone()
         if not item_row:
@@ -150,7 +150,7 @@ def equip_item(
             "SELECT 1 FROM user_inventory WHERE user_id = ? AND item_id = ?",
             (current_user["id"], payload.item_id),
         ).fetchone()
-        if not owned and item["price_coins"] > 0:
+        if not owned and not item.get("is_default"):
             raise HTTPException(status_code=403, detail="Item not owned.")
 
         col = EQUIPPABLE_TYPES.get(item["item_type"])

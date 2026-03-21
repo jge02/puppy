@@ -1700,6 +1700,15 @@ export default function Dashboard() {
       grouped[item.item_type].push(item);
     }
     const inventoryMap = new Map(shopInventory.map((i) => [i.id, i]));
+    const equippedItemIds = new Set(
+      [
+        growthSummary?.equipped_bottle_theme_id,
+        growthSummary?.equipped_orb_skin_id,
+        growthSummary?.equipped_dashboard_bg_id,
+        growthSummary?.equipped_entry_animation_id,
+        ...shopInventory.filter((item) => item.equipped).map((item) => item.id),
+      ].filter(Boolean)
+    );
 
     return (
       <div className="dashboard-section-stack">
@@ -1722,7 +1731,7 @@ export default function Dashboard() {
               {items.map((item) => {
                 const inv = inventoryMap.get(item.id);
                 const isOwned = item.owned;
-                const isEquipped = inv?.equipped ?? false;
+                const isEquipped = Boolean(inv?.equipped || equippedItemIds.has(item.id));
                 return (
                   <div key={item.id} className={`shop-item${isOwned ? " is-owned" : ""}${isEquipped ? " is-equipped" : ""}`}>
                     <div className="shop-item-icon">{getShopItemEmoji(item.item_type, item.id)}</div>

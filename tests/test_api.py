@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+from io import BytesIO
 import os
 import tempfile
 import unittest
@@ -34,6 +36,7 @@ class PuppyApiTests(unittest.TestCase):
             list_sent_match_requests,
         )
         from app.routes.relationships import bind_by_invite
+        from app.routes.shop import EquipRequest, equip_item, list_shop_items
         from app.routes.task_requests import create_task_request, list_task_requests, reject_task_request
         from app.routes.tasks import approve_task, create_task, submit_task
         from app.schemas import (
@@ -61,6 +64,8 @@ class PuppyApiTests(unittest.TestCase):
         self.create_task = create_task
         self.create_match_post = create_match_post
         self.create_match_request = create_match_request
+        self.equip_item = equip_item
+        self.list_shop_items = list_shop_items
         self.list_task_requests = list_task_requests
         self.list_match_request_inbox = list_match_request_inbox
         self.list_sent_match_requests = list_sent_match_requests
@@ -79,6 +84,7 @@ class PuppyApiTests(unittest.TestCase):
         self.CreateMatchRequestRequest = CreateMatchRequestRequest
         self.CreateTaskRequest = CreateTaskRequest
         self.CreateTaskRequestRequest = CreateTaskRequestRequest
+        self.EquipRequest = EquipRequest
         self.HandleMatchRequestRequest = HandleMatchRequestRequest
         self.LoginRequest = LoginRequest
         self.RejectTaskRequestRequest = RejectTaskRequestRequest
@@ -311,6 +317,58 @@ class PuppyApiTests(unittest.TestCase):
                 current_user=puppy["user"],
             )
         self.assertEqual(getattr(context.exception, "detail", None), "Task has expired.")
+
+    def test_task_submission_rejects_files_larger_than_backend_limit(self) -> None:
+        owner, puppy, relationship_id = self.bind_active_relationship()
+
+        created = self.create_task(
+            self.CreateTaskRequest(
+                relationship_id=relationship_id,
+                title="Upload proof",
+                description="Attach an image",
+                deadline=None,
+                expected_submission_type="image",
+            ),
+            current_user=owner["user"],
+        )
+        task_id = created["task"]["id"]
+
+        os.environ["PUPPY_TASK_SUBMISSION_MAX_FILE_SIZE_MB"] = "0.0001"
+        from app.routes import tasks as tasks_module
+
+        tasks_module = importlib.reload(tasks_module)
+        oversized_file = tasks_module.UploadFile(
+            file=BytesIO(b"a" * 1024),
+            filename="proof.jpg",
+            headers={"content-type": "image/jpeg"},
+        )
+
+        try:
+            with self.assertRaises(Exception) as context:
+                tasks_module.submit_task(
+                    task_id,
+                    note="Proof attached",
+                    media_file=oversized_file,
+                    current_user=puppy["user"],
+                )
+            self.assertEqual(getattr(context.exception, "status_code", None), 413)
+            self.assertEqual(
+                getattr(context.exception, "detail", None),
+                "Uploaded file exceeds the allowed size limit.",
+            )
+        finally:
+            os.environ.pop("PUPPY_TASK_SUBMISSION_MAX_FILE_SIZE_MB", None)
+            importlib.reload(tasks_module)
+
+        connection = self.database.get_connection()
+        try:
+            submission_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM task_submissions WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+        finally:
+            connection.close()
+        self.assertEqual(submission_count["count"], 0)
 
     def test_task_request_flow(self) -> None:
         owner, puppy, relationship_id = self.bind_active_relationship()
@@ -651,6 +709,39 @@ class PuppyApiTests(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             self.admin_stats("wrong-token")
         self.assertEqual(getattr(context.exception, "detail", None), "Invalid admin token.")
+
+    def test_shop_cannot_equip_inactive_free_item(self) -> None:
+        owner = self.register("shop-owner@example.com", "owner")
+        connection = self.database.get_connection()
+        try:
+            connection.execute("UPDATE shop_items SET is_active = 0 WHERE id = 'title_beginner'")
+            connection.commit()
+        finally:
+            connection.close()
+
+        visible_items = self.list_shop_items(current_user=owner["user"])
+        visible_ids = {item["id"] for item in visible_items["items"]}
+        self.assertNotIn("title_beginner", visible_ids)
+
+        with self.assertRaises(Exception) as context:
+            self.equip_item(self.EquipRequest(item_id="title_beginner"), current_user=owner["user"])
+        self.assertEqual(getattr(context.exception, "detail", None), "Item not found.")
+
+    def test_shop_default_items_are_owned_without_inventory(self) -> None:
+        owner = self.register("shop-default-owner@example.com", "owner")
+
+        visible_items = self.list_shop_items(current_user=owner["user"])
+        items_by_id = {item["id"]: item for item in visible_items["items"]}
+
+        self.assertTrue(items_by_id["bottle_glass"]["owned"])
+        self.assertTrue(items_by_id["orb_bubble"]["owned"])
+        self.assertFalse(items_by_id["title_beginner"]["owned"])
+
+    def test_shop_can_equip_default_item_without_inventory_record(self) -> None:
+        owner = self.register("shop-equip-owner@example.com", "owner")
+
+        equipped = self.equip_item(self.EquipRequest(item_id="bottle_glass"), current_user=owner["user"])
+        self.assertEqual(equipped["equipped"]["bottle_theme_id"], "bottle_glass")
 
 
 if __name__ == "__main__":
