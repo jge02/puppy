@@ -880,7 +880,7 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
 
           <Card
             key={currentSwipePost.id}
-            className={`bind-feed-card bind-swipe-card${
+            className={`bind-feed-card bind-swipe-card${currentSwipePost.image_url ? " has-image" : ""}${
               draggingPostId === currentSwipePost.id ? " is-dragging" : ""
             }${exitingPostId === currentSwipePost.id && exitDirection === "left" ? " is-exit-left" : ""}${
               exitingPostId === currentSwipePost.id && exitDirection === "right" ? " is-exit-right" : ""
@@ -896,8 +896,14 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
             onPointerUp={(event) => handleSwipePointerUp(event, currentSwipePost)}
             onPointerCancel={resetSwipeState}
           >
-            <CardBody className="bind-swipe-card-body">
-              <div className="bind-swipe-card-scroll">
+            {currentSwipePost.image_url ? (
+              <>
+                <img
+                  src={toAssetUrl(currentSwipePost.image_url)}
+                  alt={currentSwipePost.display_name || "match post"}
+                  className="bind-swipe-card-bg-image"
+                  draggable={false}
+                />
                 <div className="bind-swipe-badge-row" aria-hidden="true">
                   <span
                     className={`bind-swipe-badge is-left${dragOffsetX <= -24 ? " is-visible" : ""}`}
@@ -912,87 +918,170 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
                     LIKE
                   </span>
                 </div>
-
-                <div className="bind-feed-author">
-                  <span className="bind-feed-avatar">{getInitialLetter(currentSwipePost.display_name)}</span>
-                  <div className="bind-feed-author-copy">
-                    <strong>{currentSwipePost.display_name}</strong>
-                    <span className="bind-feed-time">{formatDate(currentSwipePost.created_at, locale)}</span>
+                <div className="bind-swipe-card-overlay">
+                  <div className="bind-swipe-card-overlay-info">
+                    <div className="bind-feed-author">
+                      <span className="bind-feed-avatar">{getInitialLetter(currentSwipePost.display_name)}</span>
+                      <div className="bind-feed-author-copy">
+                        <strong className="bind-feed-author-name">{currentSwipePost.display_name}</strong>
+                        <span className="bind-feed-time">{formatDate(currentSwipePost.created_at, locale)}</span>
+                      </div>
+                      <Badge status="pending">{currentSwipePost.role_preference === "owner" ? `🔗 ${t("role.owner")}` : `🐾 ${t("role.puppy")}`}</Badge>
+                    </div>
+                    <p className="bind-feed-text">{currentSwipePost.intro}</p>
+                    <div className="bind-profile-chips">
+                      <span className="bind-profile-chip">
+                        {formatGenderLabel(currentSwipePost.gender || "private", t)}
+                      </span>
+                      <span className="bind-profile-chip bind-profile-chip-arrow">→</span>
+                      <span className="bind-profile-chip">
+                        {formatSeekingGenderLabel(currentSwipePost.seeking_gender || "any", t)}
+                      </span>
+                      <span className="bind-profile-chip">
+                        {formatOrientationLabel(currentSwipePost.sexual_orientation || "unspecified", t)}
+                      </span>
+                      {currentSwipePost.identity_labels?.map((label) => (
+                        <span key={label} className="bind-profile-chip bind-profile-chip-label">
+                          {formatIdentityLabel(label, t)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <Badge status="pending">{currentSwipePost.role_preference === "owner" ? `🔗 ${t("role.owner")}` : `🐾 ${t("role.puppy")}`}</Badge>
+                  <div className="bind-swipe-card-footer">
+                    <ButtonGroup className="bind-feed-actions bind-swipe-actions">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="bind-swipe-action-button is-pass"
+                        onClick={() => triggerSwipe(currentSwipePost, "left")}
+                        disabled={busy}
+                      >
+                        <span aria-hidden="true">✕</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        role={isOwner ? "owner" : "puppy"}
+                        className="bind-swipe-action-button is-like"
+                        onClick={() => triggerSwipe(currentSwipePost, "right")}
+                        disabled={busy || dailySentCount >= 5 || Boolean(currentSwipePost.has_pending_request)}
+                      >
+                        <span aria-hidden="true">♥</span>
+                      </Button>
+                    </ButtonGroup>
+                    <div className="bind-swipe-secondary-actions">
+                      <button
+                        type="button"
+                        className="bind-swipe-secondary-link"
+                        onClick={() => void handleBlockUser(currentSwipePost.user_id)}
+                        disabled={busy}
+                      >
+                        {t("bind.match_block")}
+                      </button>
+                      <span className="bind-swipe-secondary-dot" aria-hidden="true">•</span>
+                      <button
+                        type="button"
+                        className="bind-swipe-secondary-link"
+                        onClick={() => void handleReportUser(currentSwipePost.user_id)}
+                        disabled={busy}
+                      >
+                        {t("bind.match_report")}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-
-                <p className="bind-feed-text">{currentSwipePost.intro}</p>
-                <div className="bind-profile-chips">
-                  <span className="bind-profile-chip">
-                    {formatGenderLabel(currentSwipePost.gender || "private", t)}
-                  </span>
-                  <span className="bind-profile-chip bind-profile-chip-arrow">→</span>
-                  <span className="bind-profile-chip">
-                    {formatSeekingGenderLabel(currentSwipePost.seeking_gender || "any", t)}
-                  </span>
-                  <span className="bind-profile-chip">
-                    {formatOrientationLabel(currentSwipePost.sexual_orientation || "unspecified", t)}
-                  </span>
-                  {currentSwipePost.identity_labels?.map((label) => (
-                    <span key={label} className="bind-profile-chip bind-profile-chip-label">
-                      {formatIdentityLabel(label, t)}
+              </>
+            ) : (
+              <CardBody className="bind-swipe-card-body">
+                <div className="bind-swipe-card-scroll">
+                  <div className="bind-swipe-badge-row" aria-hidden="true">
+                    <span
+                      className={`bind-swipe-badge is-left${dragOffsetX <= -24 ? " is-visible" : ""}`}
+                      style={{ opacity: dragOffsetX < 0 ? Math.min(Math.abs(dragOffsetX) / 120, 1) : undefined }}
+                    >
+                      NOPE
                     </span>
-                  ))}
-                </div>
-                {currentSwipePost.image_url ? (
-                  <img
-                    src={toAssetUrl(currentSwipePost.image_url)}
-                    alt={currentSwipePost.display_name || "match post"}
-                    className="bind-feed-image"
-                    loading="lazy"
-                  />
-                ) : null}
-              </div>
+                    <span
+                      className={`bind-swipe-badge is-right${dragOffsetX >= 24 ? " is-visible" : ""}`}
+                      style={{ opacity: dragOffsetX > 0 ? Math.min(Math.abs(dragOffsetX) / 120, 1) : undefined }}
+                    >
+                      LIKE
+                    </span>
+                  </div>
 
-              <div className="bind-swipe-card-footer">
-                <ButtonGroup className="bind-feed-actions bind-swipe-actions">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="bind-swipe-action-button is-pass"
-                    onClick={() => triggerSwipe(currentSwipePost, "left")}
-                    disabled={busy}
-                  >
-                    <span aria-hidden="true">✕</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    role={isOwner ? "owner" : "puppy"}
-                    className="bind-swipe-action-button is-like"
-                    onClick={() => triggerSwipe(currentSwipePost, "right")}
-                    disabled={busy || dailySentCount >= 5 || Boolean(currentSwipePost.has_pending_request)}
-                  >
-                    <span aria-hidden="true">♥</span>
-                  </Button>
-                </ButtonGroup>
-                <div className="bind-swipe-secondary-actions">
-                  <button
-                    type="button"
-                    className="bind-swipe-secondary-link"
-                    onClick={() => void handleBlockUser(currentSwipePost.user_id)}
-                    disabled={busy}
-                  >
-                    {t("bind.match_block")}
-                  </button>
-                  <span className="bind-swipe-secondary-dot" aria-hidden="true">•</span>
-                  <button
-                    type="button"
-                    className="bind-swipe-secondary-link"
-                    onClick={() => void handleReportUser(currentSwipePost.user_id)}
-                    disabled={busy}
-                  >
-                    {t("bind.match_report")}
-                  </button>
+                  <div className="bind-feed-author">
+                    <span className="bind-feed-avatar">{getInitialLetter(currentSwipePost.display_name)}</span>
+                    <div className="bind-feed-author-copy">
+                      <strong>{currentSwipePost.display_name}</strong>
+                      <span className="bind-feed-time">{formatDate(currentSwipePost.created_at, locale)}</span>
+                    </div>
+                    <Badge status="pending">{currentSwipePost.role_preference === "owner" ? `🔗 ${t("role.owner")}` : `🐾 ${t("role.puppy")}`}</Badge>
+                  </div>
+
+                  <p className="bind-feed-text">{currentSwipePost.intro}</p>
+                  <div className="bind-profile-chips">
+                    <span className="bind-profile-chip">
+                      {formatGenderLabel(currentSwipePost.gender || "private", t)}
+                    </span>
+                    <span className="bind-profile-chip bind-profile-chip-arrow">→</span>
+                    <span className="bind-profile-chip">
+                      {formatSeekingGenderLabel(currentSwipePost.seeking_gender || "any", t)}
+                    </span>
+                    <span className="bind-profile-chip">
+                      {formatOrientationLabel(currentSwipePost.sexual_orientation || "unspecified", t)}
+                    </span>
+                    {currentSwipePost.identity_labels?.map((label) => (
+                      <span key={label} className="bind-profile-chip bind-profile-chip-label">
+                        {formatIdentityLabel(label, t)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </CardBody>
+
+                <div className="bind-swipe-card-footer">
+                  <ButtonGroup className="bind-feed-actions bind-swipe-actions">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="bind-swipe-action-button is-pass"
+                      onClick={() => triggerSwipe(currentSwipePost, "left")}
+                      disabled={busy}
+                    >
+                      <span aria-hidden="true">✕</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      role={isOwner ? "owner" : "puppy"}
+                      className="bind-swipe-action-button is-like"
+                      onClick={() => triggerSwipe(currentSwipePost, "right")}
+                      disabled={busy || dailySentCount >= 5 || Boolean(currentSwipePost.has_pending_request)}
+                    >
+                      <span aria-hidden="true">♥</span>
+                    </Button>
+                  </ButtonGroup>
+                  <div className="bind-swipe-secondary-actions">
+                    <button
+                      type="button"
+                      className="bind-swipe-secondary-link"
+                      onClick={() => void handleBlockUser(currentSwipePost.user_id)}
+                      disabled={busy}
+                    >
+                      {t("bind.match_block")}
+                    </button>
+                    <span className="bind-swipe-secondary-dot" aria-hidden="true">•</span>
+                    <button
+                      type="button"
+                      className="bind-swipe-secondary-link"
+                      onClick={() => void handleReportUser(currentSwipePost.user_id)}
+                      disabled={busy}
+                    >
+                      {t("bind.match_report")}
+                    </button>
+                  </div>
+                </div>
+              </CardBody>
+            )}
           </Card>
 
           <div className="bind-swipe-hint" aria-live="polite">
@@ -1247,6 +1336,17 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
             <div className="bind-community-stage">
               {renderFeedStream()}
             </div>
+
+            {!showComposer && !pendingInvitePost ? (
+              <button
+                className={`bind-fab${hasActivePost ? " is-posted" : ""}`}
+                onClick={() => { if (!hasActivePost) setShowComposer(true); }}
+                title={hasActivePost ? "已发布招募帖" : t("bind.community_publish_title")}
+                aria-label={hasActivePost ? "已发布招募帖" : t("bind.community_publish_title")}
+              >
+                {hasActivePost ? "📄" : "✏️"}
+              </button>
+            ) : null}
 
             {showComposer ? (
               <div

@@ -560,7 +560,6 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_shop_items_type ON shop_items(item_type);
             """
         )
-        _seed_shop_items(connection)
         if not _column_exists(connection, "tasks", "expected_submission_type"):
             connection.execute(
                 """
@@ -627,6 +626,7 @@ def init_db() -> None:
                     CHECK (is_default IN (0, 1))
                 """
             )
+        _seed_shop_items(connection)
         connection.commit()
     finally:
         connection.close()

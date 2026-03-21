@@ -950,11 +950,15 @@
 .bind-swipe-card-body {
   display: flex;
   flex-direction: column;
-  /* No flex:1 — let content sit at top, buttons follow immediately */
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .bind-swipe-card-scroll {
+  flex: 1;
   overflow: hidden;
+  min-height: 0;
   padding: 16px 18px 4px;
 }
 
@@ -966,6 +970,77 @@
   background: rgba(13, 8, 20, 0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Full-bleed image card (has-image) ───────────────── */
+/* Dark base so below the image area is solid, not transparent */
+.bind-swipe-card.has-image {
+  background: rgba(10, 4, 18, 0.96);
+}
+
+.bind-swipe-card.has-image > .bind-swipe-badge-row {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  margin-bottom: 0;
+  z-index: 3;
+}
+
+.bind-swipe-card-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 62%;
+  max-height: 340px;
+  width: 100%;
+  object-fit: cover;
+  object-position: center top;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.bind-swipe-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    to top,
+    rgba(10, 4, 18, 1) 0%,
+    rgba(10, 4, 18, 0.98) 50%,
+    rgba(10, 4, 18, 0.7) 80%,
+    transparent 100%
+  );
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+
+.bind-swipe-card-overlay-info {
+  padding: 16px 18px 0;
+}
+
+.bind-swipe-card-overlay .bind-feed-author-name,
+.bind-swipe-card-overlay .bind-feed-author-copy strong {
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.bind-swipe-card-overlay .bind-feed-text {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.bind-swipe-card-overlay .bind-feed-time {
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.bind-swipe-card-overlay .bind-feed-avatar {
+  text-shadow: none;
 }
 
 /* ── Feed author ─────────────────────────────────────── */
@@ -1153,6 +1228,8 @@
 
 /* ── Swipe like/nope badges ──────────────────────────── */
 .bind-swipe-badge-row {
+  position: relative;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -1193,6 +1270,7 @@
   right: 0;
   bottom: 0;
   left: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1280,6 +1358,13 @@
 .bind-fab:disabled {
   opacity: .4;
   cursor: not-allowed;
+}
+
+.bind-fab.is-posted {
+  background: var(--surface-2);
+  box-shadow: none;
+  opacity: .7;
+  cursor: default;
 }
 
 /* ── Composer modal (bottom sheet) ───────────────────── */
@@ -1417,7 +1502,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 460px;
   overflow: hidden;
 }
 
@@ -1525,6 +1610,9 @@
   }
 
   .bind-swipe-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
     gap: 16px;
   }
 
