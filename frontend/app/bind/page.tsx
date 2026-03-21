@@ -1,4 +1,4 @@
-import BindPanel from "../ui/bind";
+import BindPanel from "../../features/bind/BindPanel";
 
 type BindPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

@@ -1,4 +1,4 @@
-import LoginPanel from "../ui/login";
+import LoginPanel from "../../features/auth/LoginPanel";
 
 
 export default function LoginPage() {

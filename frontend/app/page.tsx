@@ -1,4 +1,4 @@
-import HomeRedirect from "./ui/home-redirect";
+import HomeRedirect from "../components/home-redirect";
 
 
 export default function HomePage() {

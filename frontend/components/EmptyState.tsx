@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { useI18n } from "../../lib/i18n/useI18n";
+import { useI18n } from "../lib/i18n/useI18n";
 
 type EmptyStateProps = {
   title?: string;

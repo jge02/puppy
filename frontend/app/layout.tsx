@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import "antd/dist/reset.css";
 import { I18nProvider } from "../lib/i18n/I18nProvider";
-import { AntdAppProvider } from "./ui/AntdAppProvider";
+import { AntdAppProvider } from "../components/AntdAppProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {

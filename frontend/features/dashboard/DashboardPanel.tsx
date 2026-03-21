@@ -39,9 +39,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { translateApiError } from "../../lib/i18n/api-errors";
 import type { MessageKey } from "../../lib/i18n/messages";
 import { useI18n } from "../../lib/i18n/useI18n";
-import { ErrorState } from "./ErrorState";
-import { LanguageSwitcher } from "./LanguageSwitcher";
-import { LoadingState } from "./LoadingState";
+import { ErrorState } from "../../components/ErrorState";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher";
+import { LoadingState } from "../../components/LoadingState";
 import "./dashboard.css";
 
 const { Content, Sider } = Layout;
@@ -71,6 +71,23 @@ function resolveWsBaseUrl(apiBaseUrl: string) {
 const WS_BASE_URL = resolveWsBaseUrl(API_BASE_URL);
 const TOKEN_KEY = "puppy_token";
 const SKIP_BIND_KEY = "puppy_skip_bind";
+function resolveTaskSubmissionMaxFileSizeMb() {
+  const rawValue = process.env.NEXT_PUBLIC_TASK_SUBMISSION_MAX_FILE_SIZE_MB;
+  if (!rawValue || !rawValue.trim()) {
+    return null;
+  }
+  const parsedValue = Number(rawValue);
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return null;
+  }
+  return parsedValue;
+}
+
+const TASK_SUBMISSION_MAX_FILE_SIZE_MB = resolveTaskSubmissionMaxFileSizeMb();
+const TASK_SUBMISSION_MAX_FILE_SIZE_BYTES =
+  TASK_SUBMISSION_MAX_FILE_SIZE_MB === null
+    ? null
+    : TASK_SUBMISSION_MAX_FILE_SIZE_MB * 1024 * 1024;
 
 type User = {
   id: string;
@@ -247,7 +264,13 @@ async function apiRequest(
 
   const data = (await response.json().catch(() => ({}))) as { detail?: string };
   if (!response.ok) {
-    throw new Error(data.detail || "Request failed");
+    if (typeof data.detail === "string" && data.detail.trim()) {
+      throw new Error(data.detail);
+    }
+    if (response.status === 413) {
+      throw new Error("Request Entity Too Large");
+    }
+    throw new Error(response.statusText || "Request failed");
   }
   return data;
 }
@@ -344,6 +367,24 @@ function getSubmissionHelperText(
     return t("dashboard.task_submission_image_hint");
   }
   return t("dashboard.task_submission_video_hint");
+}
+
+function getSubmissionFileSizeHint(maxSizeMb: number | null) {
+  if (maxSizeMb === null) {
+    return null;
+  }
+  return `Max file size: ${maxSizeMb}MB.`;
+}
+
+function getSubmissionFileTooLargeMessage(maxSizeMb: number | null) {
+  if (maxSizeMb === null) {
+    return "File is too large. Please upload a smaller file.";
+  }
+  return `File is too large. Please upload a file smaller than ${maxSizeMb}MB.`;
+}
+
+function getSubmissionPayloadTooLargeMessage() {
+  return "Upload failed because the file is too large for the server limit. Please compress the file and try again.";
 }
 
 function toAssetUrl(url: string) {
@@ -1011,6 +1052,14 @@ export default function Dashboard() {
     if (!taskSubmissionForm.taskId) {
       return;
     }
+    if (
+      TASK_SUBMISSION_MAX_FILE_SIZE_BYTES !== null &&
+      taskSubmissionForm.media_file &&
+      taskSubmissionForm.media_file.size > TASK_SUBMISSION_MAX_FILE_SIZE_BYTES
+    ) {
+      setNotice(getSubmissionFileTooLargeMessage(TASK_SUBMISSION_MAX_FILE_SIZE_MB));
+      return;
+    }
 
     setBusy(true);
     try {
@@ -1031,6 +1080,10 @@ export default function Dashboard() {
       await refreshData();
     } catch (err) {
       const message = err instanceof Error ? err.message : t("common.request_failed");
+      if (message === "Request Entity Too Large") {
+        setNotice(getSubmissionPayloadTooLargeMessage());
+        return;
+      }
       setNotice(translateApiError(message, t));
     } finally {
       setBusy(false);
@@ -1308,6 +1361,43 @@ export default function Dashboard() {
 
   const renderOverviewSection = () => (
     <div className="dashboard-section-stack">
+      <Card className={`dashboard-mobile-hero ${isOwner ? "is-owner" : "is-puppy"}`}>
+        <div className="dashboard-mobile-hero-head">
+          <div>
+            <p className="dashboard-mobile-hero-kicker">{sectionTitles.overview}</p>
+            <h3 className="dashboard-mobile-hero-title">{relationship?.counterpart.display_name}</h3>
+          </div>
+          <Tag color={getRelationshipTagColor(relationship?.relationship.status || "")}>
+            {relationship ? t(`dashboard.relationship_status.${relationship.relationship.status}` as never) : ""}
+          </Tag>
+        </div>
+        <p className="dashboard-mobile-hero-copy">{sectionHints.overview}</p>
+        {canCreateTask || isPuppy ? (
+          <div className="dashboard-mobile-hero-actions">
+            {canCreateTask ? (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setShowCreateModal(true)}
+                className="dashboard-quick-action is-owner"
+              >
+                {t("dashboard.create_task")}
+              </Button>
+            ) : null}
+            {isPuppy ? (
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={() => setShowTaskRequestModal(true)}
+                className="dashboard-quick-action is-puppy"
+              >
+                {t("dashboard.request_task")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </Card>
+
       <div className="dashboard-stat-grid">
         <Card><Statistic title={t("dashboard.open_tasks")} value={openTasks} /></Card>
         <Card><Statistic title={t("dashboard.submitted_tasks")} value={submittedTasks} /></Card>
@@ -1608,6 +1698,7 @@ export default function Dashboard() {
     >
       <header className="dashboard-topbar">
         <div className="dashboard-topbar-title">
+          <span className="dashboard-topbar-kicker">{sectionTitles[activeSection]}</span>
           <Title level={2}>
             {me.user.role_preference === "owner" ? "🔗\u00a0" : "🐾\u00a0"}
             {t("dashboard.title")}
@@ -1631,7 +1722,7 @@ export default function Dashboard() {
               <Text type="secondary">{isSkipped ? t("dashboard.binding_reminder") : t("dashboard.no_relationship_description")}</Text>
             </div>
             <Space wrap>
-              <Button type="primary" icon={<LinkOutlined />} onClick={() => router.replace("/bind?tab=match")}>
+              <Button type="primary" icon={<LinkOutlined />} onClick={() => router.replace("/match/swipe")}>
                 {t("dashboard.open_match_plaza")}
               </Button>
               <Button onClick={() => router.replace("/bind?tab=invite")}>{t("dashboard.bind_by_invite")}</Button>
@@ -1718,7 +1809,7 @@ export default function Dashboard() {
         </>
       )}
 
-      <Modal open={showCreateModal} onCancel={resetCreateTaskModal} footer={null} title={t("dashboard.create_task_modal")} destroyOnHidden>
+      <Modal open={showCreateModal} onCancel={resetCreateTaskModal} footer={null} title={t("dashboard.create_task_modal")} destroyOnHidden wrapClassName="dashboard-sheet-modal">
         <Form layout="vertical" onFinish={() => void handleCreateTask()}>
           <Form.Item label={t("dashboard.task_title")} required>
             <Input value={taskForm.title} placeholder={t("dashboard.task_title_placeholder")} onChange={(event) => setTaskForm((current) => ({ ...current, title: event.target.value }))} />
@@ -1787,6 +1878,7 @@ export default function Dashboard() {
         title={t("dashboard.deadline")}
         destroyOnHidden
         width={isDesktop ? 560 : undefined}
+        wrapClassName="dashboard-sheet-modal"
       >
         <div className="dashboard-deadline-picker">
           <Calendar
@@ -1847,6 +1939,7 @@ export default function Dashboard() {
         title={submissionPreviewTask?.title || t("dashboard.task_submission_link")}
         destroyOnHidden
         width={isDesktop ? 720 : undefined}
+        wrapClassName="dashboard-sheet-modal"
       >
         {submissionPreviewTask ? (
           <div className="dashboard-submission-preview">
@@ -1910,6 +2003,7 @@ export default function Dashboard() {
             paddingBottom: isDesktop ? undefined : "calc(16px + env(safe-area-inset-bottom, 0px))",
           },
         }}
+        wrapClassName="dashboard-sheet-modal"
       >
         <Form layout="vertical" onFinish={() => void handleSubmitTask()}>
           <Form.Item label={t("dashboard.task_submission_requirement")}>
@@ -1926,12 +2020,32 @@ export default function Dashboard() {
                   className="dashboard-upload-input"
                   type="file"
                   accept={taskSubmissionForm.expected_submission_type === "image" ? "image/*" : "video/*"}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const selectedFile = event.target.files?.[0] || null;
+                    if (!selectedFile) {
+                      setTaskSubmissionForm((current) => ({
+                        ...current,
+                        media_file: null,
+                      }));
+                      return;
+                    }
+                    if (
+                      TASK_SUBMISSION_MAX_FILE_SIZE_BYTES !== null &&
+                      selectedFile.size > TASK_SUBMISSION_MAX_FILE_SIZE_BYTES
+                    ) {
+                      event.target.value = "";
+                      setTaskSubmissionForm((current) => ({
+                        ...current,
+                        media_file: null,
+                      }));
+                      setNotice(getSubmissionFileTooLargeMessage(TASK_SUBMISSION_MAX_FILE_SIZE_MB));
+                      return;
+                    }
                     setTaskSubmissionForm((current) => ({
                       ...current,
-                      media_file: event.target.files?.[0] || null,
-                    }))
-                  }
+                      media_file: selectedFile,
+                    }));
+                  }}
                 />
                 <label htmlFor={submissionFileInputId} className="dashboard-upload-trigger">
                   {getSubmissionPickerLabel(taskSubmissionForm.expected_submission_type, t)}
@@ -1940,7 +2054,9 @@ export default function Dashboard() {
                   {taskSubmissionForm.media_file?.name || t("dashboard.task_submission_no_file")}
                 </Text>
                 <Text type="secondary" className="dashboard-upload-hint">
-                  {getSubmissionHelperText(taskSubmissionForm.expected_submission_type, t)}
+                  {[getSubmissionHelperText(taskSubmissionForm.expected_submission_type, t), getSubmissionFileSizeHint(TASK_SUBMISSION_MAX_FILE_SIZE_MB)]
+                    .filter(Boolean)
+                    .join(" ")}
                 </Text>
                 {submissionPreviewUrl ? (
                   taskSubmissionForm.expected_submission_type === "image" ? (
@@ -1983,7 +2099,7 @@ export default function Dashboard() {
         </Form>
       </Modal>
 
-      <Modal open={showTaskRequestModal} onCancel={resetTaskRequestModal} footer={null} title={t("dashboard.task_request_modal")} destroyOnHidden>
+      <Modal open={showTaskRequestModal} onCancel={resetTaskRequestModal} footer={null} title={t("dashboard.task_request_modal")} destroyOnHidden wrapClassName="dashboard-sheet-modal">
         <Form layout="vertical" onFinish={() => void handleCreateTaskRequest()}>
           <Form.Item label={t("dashboard.task_request_title")} required>
             <Input value={taskRequestForm.title} placeholder={t("dashboard.task_request_title_placeholder")} onChange={(event) => setTaskRequestForm((current) => ({ ...current, title: event.target.value }))} />

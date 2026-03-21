@@ -2,9 +2,8 @@
 
 import { useEffect } from "react";
 
-import { useI18n } from "../../lib/i18n/useI18n";
-
-const TOKEN_KEY = "puppy_token";
+import { TOKEN_KEY } from "../lib/constants";
+import { useI18n } from "../lib/i18n/useI18n";
 
 export default function HomeRedirect() {
   const { t } = useI18n();

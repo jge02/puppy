@@ -1,6 +1,6 @@
 "use client";
 
-import { useI18n } from "../../lib/i18n/useI18n";
+import { useI18n } from "../lib/i18n/useI18n";
 
 type SpinnerSize = "sm" | "md" | "lg";
 

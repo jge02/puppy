@@ -3,7 +3,7 @@
 import React from "react";
 import type { ReactNode } from "react";
 
-import { useI18n } from "../../lib/i18n/useI18n";
+import { useI18n } from "../lib/i18n/useI18n";
 
 type ErrorStateProps = {
   title?: string;
@@ -43,9 +43,9 @@ export function ErrorState({
         gap: "var(--space-4)",
         minHeight: "200px",
         textAlign: "center",
-        backgroundColor: "rgba(139, 45, 45, 0.05)",
+        backgroundColor: "var(--danger-bg)",
         borderRadius: "var(--radius-lg)",
-        border: "2px solid var(--danger)",
+        border: "1px solid rgba(255, 82, 82, 0.30)",
         animation: "slideInUp var(--transition-slow)",
       }}
     >
@@ -96,7 +96,7 @@ export function ErrorState({
               transition: "background-color var(--transition-base)",
             }}
             onMouseEnter={(event) => {
-              event.currentTarget.style.backgroundColor = "rgba(139, 45, 45, 0.08)";
+              event.currentTarget.style.backgroundColor = "var(--danger-bg)";
             }}
             onMouseLeave={(event) => {
               event.currentTarget.style.backgroundColor = "transparent";
@@ -106,7 +106,7 @@ export function ErrorState({
           </summary>
           <pre
             style={{
-              backgroundColor: "rgba(0, 0, 0, 0.05)",
+              backgroundColor: "var(--surface)",
               padding: "var(--space-3)",
               borderRadius: "var(--radius-md)",
               fontSize: "var(--text-xs)",
