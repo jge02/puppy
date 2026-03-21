@@ -227,6 +227,40 @@ def _migrate_users_role_preference(connection: sqlite3.Connection) -> None:
         connection.execute("PRAGMA foreign_keys = ON;")
 
 
+_DEFAULT_SHOP_ITEMS = [
+    ("bottle_glass", "bottle_theme", "玻璃瓶", "经典透明玻璃瓶，简洁优雅", 0, 0),
+    ("bottle_ocean", "bottle_theme", "海洋瓶", "深海蓝色调，海浪纹理", 30, 1),
+    ("bottle_candy", "bottle_theme", "糖果瓶", "粉彩糖果色，甜蜜可爱", 30, 2),
+    ("bottle_mecha", "bottle_theme", "机械瓶", "赛博朋克金属质感", 50, 3),
+    ("orb_bubble", "orb_skin", "泡泡球", "晶莹剔透的泡泡效果", 0, 0),
+    ("orb_star", "orb_skin", "星星球", "闪亮星形小球", 20, 1),
+    ("orb_neon", "orb_skin", "霓虹球", "发光霓虹色彩", 40, 2),
+    ("orb_jelly", "orb_skin", "果冻球", "软萌果冻质感", 20, 3),
+    ("bg_default", "dashboard_bg", "默认背景", "简洁深色背景", 0, 0),
+    ("bg_aurora", "dashboard_bg", "极光背景", "绚丽北极光渐变", 40, 1),
+    ("bg_sakura", "dashboard_bg", "樱花背景", "粉色樱花飘落", 40, 2),
+    ("anim_default", "entry_animation", "默认入瓶", "小球平滑落入", 0, 0),
+    ("anim_burst", "entry_animation", "爆炸入瓶", "烟花爆炸效果", 30, 1),
+    ("anim_spiral", "entry_animation", "螺旋入瓶", "螺旋旋转落入", 30, 2),
+    ("frame_basic", "avatar_frame", "基础边框", "简洁圆形边框", 0, 0),
+    ("frame_gold", "avatar_frame", "金色边框", "金色光芒边框", 60, 1),
+    ("badge_diligent", "badge", "勤勉徽章", "连续完成7天任务", 0, 0),
+    ("title_beginner", "title_item", "新手主人", "刚刚开始的旅程", 0, 0),
+    ("title_veteran", "title_item", "资深主人", "完成50个任务解锁", 80, 1),
+]
+
+
+def _seed_shop_items(connection: sqlite3.Connection) -> None:
+    for item_id, item_type, name, description, price_coins, sort_order in _DEFAULT_SHOP_ITEMS:
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO shop_items (id, item_type, name, description, price_coins, sort_order, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            """,
+            (item_id, item_type, name, description, price_coins, sort_order),
+        )
+
+
 def get_connection() -> sqlite3.Connection:
     connection = sqlite3.connect(DB_PATH, check_same_thread=False)
     connection.row_factory = sqlite3.Row
@@ -458,8 +492,64 @@ def init_db() -> None:
                 ON chat_messages(relationship_id, created_at);
             CREATE INDEX IF NOT EXISTS idx_chat_messages_sender_id
                 ON chat_messages(sender_id);
+
+            CREATE TABLE IF NOT EXISTS growth_orbs (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL UNIQUE,
+                relationship_id TEXT NOT NULL,
+                owner_id TEXT NOT NULL,
+                puppy_id TEXT NOT NULL,
+                orb_type TEXT NOT NULL CHECK (orb_type IN ('note', 'image', 'video')),
+                is_rare INTEGER NOT NULL DEFAULT 0 CHECK (is_rare IN (0, 1)),
+                task_title TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (task_id) REFERENCES tasks(id),
+                FOREIGN KEY (relationship_id) REFERENCES relationships(id),
+                FOREIGN KEY (owner_id) REFERENCES users(id),
+                FOREIGN KEY (puppy_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS shop_items (
+                id TEXT PRIMARY KEY,
+                item_type TEXT NOT NULL CHECK (item_type IN ('bottle_theme', 'orb_skin', 'dashboard_bg', 'entry_animation', 'avatar_frame', 'badge', 'title_item')),
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                price_coins INTEGER NOT NULL CHECK (price_coins >= 0),
+                preview_url TEXT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+            );
+
+            CREATE TABLE IF NOT EXISTS user_inventory (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                item_id TEXT NOT NULL,
+                purchased_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (item_id) REFERENCES shop_items(id),
+                UNIQUE (user_id, item_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_equipped_cosmetics (
+                user_id TEXT PRIMARY KEY,
+                bottle_theme_id TEXT NULL,
+                orb_skin_id TEXT NULL,
+                dashboard_bg_id TEXT NULL,
+                entry_animation_id TEXT NULL,
+                avatar_frame_id TEXT NULL,
+                title_item_id TEXT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_growth_orbs_relationship ON growth_orbs(relationship_id);
+            CREATE INDEX IF NOT EXISTS idx_growth_orbs_owner ON growth_orbs(owner_id);
+            CREATE INDEX IF NOT EXISTS idx_growth_orbs_puppy ON growth_orbs(puppy_id);
+            CREATE INDEX IF NOT EXISTS idx_user_inventory_user ON user_inventory(user_id);
+            CREATE INDEX IF NOT EXISTS idx_shop_items_type ON shop_items(item_type);
             """
         )
+        _seed_shop_items(connection)
         if not _column_exists(connection, "tasks", "expected_submission_type"):
             connection.execute(
                 """

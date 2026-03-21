@@ -312,6 +312,32 @@ def approve_task(task_id: str, current_user: dict[str, Any] = Depends(get_curren
                 "UPDATE wallets SET balance = balance + ?, updated_at = ? WHERE user_id = ?",
                 (TASK_REWARD_COINS, now, task["assigned_to"]),
             )
+        # Generate a growth orb for this approved task (idempotent via UNIQUE task_id)
+        orb_type = task.get("expected_submission_type") or "note"
+        # Check for milestone (multiples of 10) to mark as rare
+        existing_orb_count = connection.execute(
+            "SELECT COUNT(*) FROM growth_orbs WHERE relationship_id = ?",
+            (task["relationship_id"],),
+        ).fetchone()[0]
+        is_rare = 1 if (existing_orb_count + 1) % 10 == 0 else 0
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO growth_orbs
+                (id, task_id, relationship_id, owner_id, puppy_id, orb_type, is_rare, task_title, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(uuid.uuid4()),
+                task_id,
+                task["relationship_id"],
+                task["owner_id"],
+                task["assigned_to"],
+                orb_type,
+                is_rare,
+                task["title"],
+                now,
+            ),
+        )
         task["status"] = "approved"
         task["approved_at"] = now
         task["reward_granted"] = reward_granted

@@ -12,8 +12,11 @@ from app.realtime import chat_manager, notification_manager
 from app.routes.admin import router as admin_router
 from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
+from app.routes.growth import router as growth_router
 from app.routes.match import router as match_router
 from app.routes.relationships import router as relationships_router
+from app.routes.shop import router as shop_router
+from app.routes.social import router as social_router
 from app.routes.task_requests import router as task_requests_router
 from app.routes.tasks import router as tasks_router
 
@@ -56,3 +59,6 @@ app.include_router(task_requests_router)
 app.include_router(tasks_router)
 app.include_router(chat_router)
 app.include_router(match_router)
+app.include_router(growth_router)
+app.include_router(shop_router)
+app.include_router(social_router)

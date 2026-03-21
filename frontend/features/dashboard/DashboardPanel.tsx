@@ -203,7 +203,62 @@ type UnreadState = {
   unread_count: number;
 };
 
-type DashboardSection = "overview" | "tasks" | "requests" | "chat" | "profile";
+type DashboardSection = "overview" | "tasks" | "requests" | "chat" | "profile" | "shop" | "social";
+
+type GrowthOrb = {
+  id: string;
+  task_id: string;
+  orb_type: "note" | "image" | "video";
+  is_rare: number;
+  task_title: string;
+  created_at: string;
+};
+
+type GrowthSummary = {
+  total_orbs: number;
+  today_completed: number;
+  streak_days: number;
+  current_bottle_level: number;
+  equipped_bottle_theme_id: string;
+  equipped_orb_skin_id: string;
+  equipped_dashboard_bg_id: string;
+  equipped_entry_animation_id: string;
+  orbs: GrowthOrb[];
+};
+
+type ShopItem = {
+  id: string;
+  item_type: string;
+  name: string;
+  description: string;
+  price_coins: number;
+  preview_url: string | null;
+  sort_order: number;
+  owned: boolean;
+};
+
+type InventoryItem = ShopItem & {
+  purchased_at: string;
+  equipped: boolean;
+};
+
+type LeaderboardEntry = {
+  user_id: string;
+  display_name: string;
+  score: number;
+  rank: number;
+};
+
+type ShowcaseData = {
+  relationship_id: string;
+  puppy_id: string;
+  puppy_display_name: string;
+  total_orbs: number;
+  streak_days: number;
+  bottle_theme_id: string;
+  title_item_id: string | null;
+  recent_orbs: GrowthOrb[];
+};
 type IdentityLabel = "lesbian" | "gay" | "femboy" | "ts" | "cd" | "4i";
 type ProfileFormState = {
   display_name: string;
@@ -311,6 +366,27 @@ function getTaskRequestTagColor(status: TaskRequest["status"]) {
   if (status === "fulfilled") return "green";
   if (status === "rejected") return "red";
   return "default";
+}
+
+function getShopItemEmoji(itemType: string, itemId: string): string {
+  if (itemType === "bottle_theme") {
+    if (itemId === "bottle_ocean") return "🌊";
+    if (itemId === "bottle_candy") return "🍬";
+    if (itemId === "bottle_mecha") return "🤖";
+    return "🫙";
+  }
+  if (itemType === "orb_skin") {
+    if (itemId === "orb_star") return "⭐";
+    if (itemId === "orb_neon") return "💜";
+    if (itemId === "orb_jelly") return "🍡";
+    return "🫧";
+  }
+  if (itemType === "dashboard_bg") return "🎨";
+  if (itemType === "entry_animation") return "✨";
+  if (itemType === "avatar_frame") return "🖼️";
+  if (itemType === "badge") return "🏅";
+  if (itemType === "title_item") return "👑";
+  return "📦";
 }
 
 function normalizeUser(user: Partial<User>): User {
@@ -494,6 +570,14 @@ export default function Dashboard() {
   const [submissionPreviewTask, setSubmissionPreviewTask] = useState<TaskSubmissionPreviewState>(null);
   const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
   const [submissionPreviewUrl, setSubmissionPreviewUrl] = useState<string | null>(null);
+  const [growthSummary, setGrowthSummary] = useState<GrowthSummary | null>(null);
+  const [selectedOrb, setSelectedOrb] = useState<GrowthOrb | null>(null);
+  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+  const [shopInventory, setShopInventory] = useState<InventoryItem[]>([]);
+  const [leaderboard, setLeaderboard] = useState<{ type: string; label: string; entries: LeaderboardEntry[] } | null>(null);
+  const [leaderboardType, setLeaderboardType] = useState<"weekly_tasks" | "streak" | "collection">("weekly_tasks");
+  const [showcase, setShowcase] = useState<ShowcaseData | null>(null);
+  const [shopBusy, setShopBusy] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatStatus, setChatStatus] = useState<"idle" | "connecting" | "online" | "offline">("idle");
@@ -787,17 +871,41 @@ export default function Dashboard() {
     const relationshipResponse = (await apiRequest("/relationships/current", { token: currentToken })) as RelationshipSummary;
     setRelationship(relationshipResponse);
 
-    const [taskResponse, taskRequestResponse] = await Promise.all([
+    const [taskResponse, taskRequestResponse, growthResponse] = await Promise.all([
       apiRequest(`/tasks?relationship_id=${encodeURIComponent(relationshipResponse.relationship.id)}`, {
         token: currentToken,
       }) as Promise<{ tasks?: Task[] }>,
       apiRequest(`/task-requests?relationship_id=${encodeURIComponent(relationshipResponse.relationship.id)}`, {
         token: currentToken,
       }) as Promise<{ task_requests?: TaskRequest[] }>,
+      apiRequest(`/growth/summary?relationship_id=${encodeURIComponent(relationshipResponse.relationship.id)}`, {
+        token: currentToken,
+      }).catch(() => null) as Promise<GrowthSummary | null>,
     ]);
 
     setTasks(taskResponse.tasks || []);
     setTaskRequests(taskRequestResponse.task_requests || []);
+    if (growthResponse) {
+      setGrowthSummary(growthResponse as GrowthSummary);
+    }
+  }
+
+  async function loadShopData(currentToken: string) {
+    const [itemsResponse, inventoryResponse] = await Promise.all([
+      apiRequest("/shop/items", { token: currentToken }) as Promise<{ items?: ShopItem[] }>,
+      apiRequest("/shop/inventory", { token: currentToken }) as Promise<{ inventory?: InventoryItem[] }>,
+    ]);
+    setShopItems(itemsResponse.items || []);
+    setShopInventory(inventoryResponse.inventory || []);
+  }
+
+  async function loadSocialData(currentToken: string, type: "weekly_tasks" | "streak" | "collection") {
+    const [lbResponse, showcaseResponse] = await Promise.all([
+      apiRequest(`/social/leaderboard?type=${type}`, { token: currentToken }).catch(() => null),
+      apiRequest("/social/showcase", { token: currentToken }).catch(() => null),
+    ]);
+    if (lbResponse) setLeaderboard(lbResponse as { type: string; label: string; entries: LeaderboardEntry[] });
+    if (showcaseResponse) setShowcase(showcaseResponse as ShowcaseData);
   }
 
   useEffect(() => {
@@ -841,6 +949,46 @@ export default function Dashboard() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t("common.request_failed");
       setNotice(translateApiError(message, t));
+    }
+  }
+
+  async function handlePurchaseItem(itemId: string) {
+    if (!token) return;
+    setShopBusy(true);
+    try {
+      const res = (await apiRequest("/shop/purchase", {
+        method: "POST",
+        token,
+        body: { item_id: itemId },
+      })) as { wallet_balance: number };
+      setMe((current) => current ? { ...current, wallet: { balance: res.wallet_balance } } : current);
+      await loadShopData(token);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("common.request_failed");
+      setNotice(translateApiError(message, t));
+    } finally {
+      setShopBusy(false);
+    }
+  }
+
+  async function handleEquipItem(itemId: string) {
+    if (!token) return;
+    setShopBusy(true);
+    try {
+      await apiRequest("/shop/equip", { method: "POST", token, body: { item_id: itemId } });
+      await Promise.all([
+        loadShopData(token),
+        relationship
+          ? apiRequest(`/growth/summary?relationship_id=${encodeURIComponent(relationship.relationship.id)}`, { token })
+              .then((r) => setGrowthSummary(r as GrowthSummary))
+              .catch(() => null)
+          : Promise.resolve(),
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("common.request_failed");
+      setNotice(translateApiError(message, t));
+    } finally {
+      setShopBusy(false);
     }
   }
 
@@ -897,6 +1045,18 @@ export default function Dashboard() {
       setActiveSection("overview");
     }
   }, [activeSection, isDesktop]);
+
+  useEffect(() => {
+    if (activeSection === "shop" && token && shopItems.length === 0) {
+      void loadShopData(token).catch(() => null);
+    }
+  }, [activeSection, token]);
+
+  useEffect(() => {
+    if (activeSection === "social" && token) {
+      void loadSocialData(token, leaderboardType).catch(() => null);
+    }
+  }, [activeSection, token, leaderboardType]);
 
   useEffect(() => {
     const viewport = chatViewportRef.current;
@@ -1323,10 +1483,12 @@ export default function Dashboard() {
   const unreadCount = unreadState?.unread_count || 0;
 
   const navItems: { key: DashboardSection; label: string; count?: number; icon: ReactNode }[] = [
-    { key: "overview", label: t("dashboard.nav.overview"), icon: <span style={{ fontSize: 18 }}>🏠</span> },
+    { key: "overview", label: t("dashboard.nav.overview"), icon: <span style={{ fontSize: 18 }}>🫙</span> },
     { key: "tasks", label: t("dashboard.nav.tasks"), count: openTasks, icon: <span style={{ fontSize: 18 }}>{isOwner ? "📋" : "🦴"}</span> },
     { key: "requests", label: t("dashboard.nav.requests"), count: pendingRequests, icon: <span style={{ fontSize: 18 }}>📬</span> },
     { key: "chat", label: chatCopy.title, count: unreadCount, icon: <span style={{ fontSize: 18 }}>💬</span> },
+    { key: "shop", label: "商店", icon: <span style={{ fontSize: 18 }}>🛍️</span> },
+    { key: "social", label: "社区", icon: <span style={{ fontSize: 18 }}>🏆</span> },
     { key: "profile", label: t("dashboard.nav.profile"), icon: <span style={{ fontSize: 18 }}>{isOwner ? "👑" : "🐾"}</span> },
   ];
 
@@ -1336,6 +1498,8 @@ export default function Dashboard() {
     requests: t("dashboard.section.requests_hint"),
     chat: chatCopy.sectionHint,
     profile: t("dashboard.section.profile_hint"),
+    shop: "用金币解锁瓶子外观和皮肤",
+    social: "排行榜和成长展示卡",
   };
 
   const sectionTitles: Record<DashboardSection, string> = {
@@ -1344,6 +1508,8 @@ export default function Dashboard() {
     requests: t("dashboard.nav.requests"),
     chat: chatCopy.title,
     profile: t("dashboard.nav.profile"),
+    shop: "金币商店",
+    social: "社区",
   };
 
   const menuItems = navItems.map((item) => ({
@@ -1356,96 +1522,314 @@ export default function Dashboard() {
       </span>
     ),
   }));
-  const visibleNavItems = isDesktop ? navItems.filter((item) => item.key !== "chat") : navItems;
+  const mobileNavKeys: DashboardSection[] = ["overview", "tasks", "requests", "chat", "profile"];
+  const visibleNavItems = isDesktop
+    ? navItems.filter((item) => item.key !== "chat")
+    : navItems.filter((item) => mobileNavKeys.includes(item.key));
   const visibleMenuItems = isDesktop ? menuItems.filter((item) => item.key !== "chat") : menuItems;
 
-  const renderOverviewSection = () => (
-    <div className="dashboard-section-stack">
-      <Card className={`dashboard-mobile-hero ${isOwner ? "is-owner" : "is-puppy"}`}>
-        <div className="dashboard-mobile-hero-head">
-          <div>
-            <p className="dashboard-mobile-hero-kicker">{sectionTitles.overview}</p>
-            <h3 className="dashboard-mobile-hero-title">{relationship?.counterpart.display_name}</h3>
+  const orbColor = (orb: GrowthOrb) => {
+    if (orb.is_rare) return "#fbbf24";
+    if (orb.orb_type === "image") return "#ff4e8c";
+    if (orb.orb_type === "video") return "#ff7844";
+    return "#7c3aed";
+  };
+
+  const renderOverviewSection = () => {
+    const orbs = growthSummary?.orbs ?? [];
+    const totalOrbs = growthSummary?.total_orbs ?? 0;
+    const bottleLevel = growthSummary?.current_bottle_level ?? 0;
+    const bottleLevelLabel = ["空瓶", "初满", "半满", "大半", "快满了", "满瓶", "超载", "溢出", "奇迹", "传说"][Math.min(bottleLevel, 9)];
+    const displayOrbs = orbs.slice(-40); // last 40 orbs in bottle
+
+    return (
+      <div className="dashboard-section-stack">
+        {/* Growth Bottle Hero */}
+        <Card className="growth-bottle-card">
+          <div className="growth-bottle-header">
+            <div>
+              <p className="growth-bottle-kicker">成长瓶子 · {bottleLevelLabel}</p>
+              <h3 className="growth-bottle-title">{relationship?.counterpart.display_name} 的成长</h3>
+            </div>
+            <Tag color={getRelationshipTagColor(relationship?.relationship.status || "")}>
+              {relationship ? t(`dashboard.relationship_status.${relationship.relationship.status}` as never) : ""}
+            </Tag>
           </div>
-          <Tag color={getRelationshipTagColor(relationship?.relationship.status || "")}>
-            {relationship ? t(`dashboard.relationship_status.${relationship.relationship.status}` as never) : ""}
-          </Tag>
-        </div>
-        <p className="dashboard-mobile-hero-copy">{sectionHints.overview}</p>
-        {canCreateTask || isPuppy ? (
-          <div className="dashboard-mobile-hero-actions">
-            {canCreateTask ? (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setShowCreateModal(true)}
-                className="dashboard-quick-action is-owner"
-              >
-                {t("dashboard.create_task")}
-              </Button>
-            ) : null}
-            {isPuppy ? (
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={() => setShowTaskRequestModal(true)}
-                className="dashboard-quick-action is-puppy"
-              >
-                {t("dashboard.request_task")}
-              </Button>
-            ) : null}
+
+          <div className="growth-bottle-stage">
+            <div className="growth-bottle-wrap">
+              <div className="growth-bottle-vessel">
+                <div className="growth-bottle-neck" />
+                <div className="growth-bottle-body">
+                  {totalOrbs === 0 ? (
+                    <div className="growth-bottle-empty-hint">完成任务后<br />球球会落入瓶中</div>
+                  ) : (
+                    <div className="growth-orb-grid">
+                      {displayOrbs.map((orb, idx) => (
+                        <button
+                          key={orb.id}
+                          className={`growth-orb${orb.is_rare ? " is-rare" : ""}`}
+                          style={{ background: orbColor(orb), animationDelay: `${idx * 40}ms` }}
+                          title={orb.task_title}
+                          onClick={() => setSelectedOrb(orb)}
+                          aria-label={orb.task_title}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="growth-bottle-count">{totalOrbs}</div>
+            </div>
+
+            <div className="growth-bottle-stats">
+              <div className="growth-stat-item">
+                <span className="growth-stat-value">{growthSummary?.today_completed ?? 0}</span>
+                <span className="growth-stat-label">今日完成</span>
+              </div>
+              <div className="growth-stat-item">
+                <span className="growth-stat-value">{growthSummary?.streak_days ?? 0}</span>
+                <span className="growth-stat-label">连续天数</span>
+              </div>
+              <div className="growth-stat-item">
+                <span className="growth-stat-value" style={{ color: "#fbbf24" }}>{me.wallet.balance}</span>
+                <span className="growth-stat-label">金币</span>
+              </div>
+            </div>
+          </div>
+
+          {canCreateTask || isPuppy ? (
+            <div className="dashboard-mobile-hero-actions">
+              {canCreateTask ? (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreateModal(true)} className="dashboard-quick-action is-owner">
+                  {t("dashboard.create_task")}
+                </Button>
+              ) : null}
+              {isPuppy ? (
+                <Button type="primary" icon={<SendOutlined />} onClick={() => setShowTaskRequestModal(true)} className="dashboard-quick-action is-puppy">
+                  {t("dashboard.request_task")}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </Card>
+
+        {/* Orb legend */}
+        <Card size="small" className="growth-legend-card">
+          <div className="growth-orb-legend">
+            <span><span className="growth-legend-dot" style={{ background: "#7c3aed" }} />笔记球</span>
+            <span><span className="growth-legend-dot" style={{ background: "#ff4e8c" }} />图片球</span>
+            <span><span className="growth-legend-dot" style={{ background: "#ff7844" }} />视频球</span>
+            <span><span className="growth-legend-dot" style={{ background: "#fbbf24" }} />里程碑球</span>
+          </div>
+        </Card>
+
+        {/* Mobile quick-access: shop & social */}
+        {!isDesktop ? (
+          <div className="overview-shortcut-row">
+            <button className="overview-shortcut-btn" onClick={() => setActiveSection("shop")}>
+              <span className="overview-shortcut-icon">🛍️</span>
+              <span className="overview-shortcut-label">金币商店</span>
+              <span className="overview-shortcut-sub">{me.wallet.balance} 金币可用</span>
+            </button>
+            <button className="overview-shortcut-btn" onClick={() => setActiveSection("social")}>
+              <span className="overview-shortcut-icon">🏆</span>
+              <span className="overview-shortcut-label">社区排行</span>
+              <span className="overview-shortcut-sub">查看排行榜</span>
+            </button>
           </div>
         ) : null}
-      </Card>
 
-      <div className="dashboard-stat-grid">
-        <Card><Statistic title={t("dashboard.open_tasks")} value={openTasks} /></Card>
-        <Card><Statistic title={t("dashboard.submitted_tasks")} value={submittedTasks} /></Card>
-        <Card><Statistic title={t("dashboard.approved_tasks")} value={approvedTasks} /></Card>
-        <Card><Statistic title={t("dashboard.wallet")} value={me.wallet.balance} suffix={t("dashboard.coins")} /></Card>
-      </div>
+        {/* Task stats + relationship info */}
+        <div className="dashboard-stat-grid">
+          <Card><Statistic title={t("dashboard.open_tasks")} value={openTasks} /></Card>
+          <Card><Statistic title={t("dashboard.submitted_tasks")} value={submittedTasks} /></Card>
+          <Card><Statistic title={t("dashboard.approved_tasks")} value={approvedTasks} /></Card>
+          <Card><Statistic title={t("dashboard.wallet")} value={me.wallet.balance} suffix={t("dashboard.coins")} /></Card>
+        </div>
 
-      <Card className={`dashboard-relationship-card ${isOwner ? "is-owner" : "is-puppy"}`}>
-        <div className="dashboard-relationship-top">
-          <div className="dashboard-relationship-people">
-            <div className="dashboard-person-chip">
-              <div className="dashboard-avatar">{me.user.display_name.slice(0, 1).toUpperCase()}</div>
-              <div className="dashboard-relationship-copy">
-                <div className="dashboard-person-name-row">
-                  <Title level={3}>{me.user.display_name}</Title>
-                  <span className="dashboard-role-marker" aria-label={me.user.role_preference}>
-                    {getRoleMarker(me.user.role_preference)}
-                  </span>
-                </div>
-                <Text type="secondary">{me.user.email}</Text>
+        <Card className={`dashboard-relationship-card ${isOwner ? "is-owner" : "is-puppy"}`}>
+          <div className="dashboard-info-grid">
+            <div className="dashboard-info-row"><Text type="secondary">{t("dashboard.intimacy")}</Text><strong>{relationship?.relationship.intimacy_score}</strong></div>
+            <div className="dashboard-info-row"><Text type="secondary">{t("dashboard.invite_code")}</Text><strong>{me.user.invite_code}</strong></div>
+            <div className="dashboard-info-row"><Text type="secondary">{t("dashboard.wallet")}</Text><strong>{me.wallet.balance} {t("dashboard.coins")}</strong></div>
+          </div>
+        </Card>
+
+        {/* Orb detail modal */}
+        <Modal
+          open={Boolean(selectedOrb)}
+          onCancel={() => setSelectedOrb(null)}
+          footer={null}
+          title="球球详情"
+          className="growth-orb-modal"
+        >
+          {selectedOrb ? (
+            <div className="growth-orb-detail">
+              <div className="growth-orb-detail-icon" style={{ background: orbColor(selectedOrb) }}>
+                {selectedOrb.is_rare ? "⭐" : selectedOrb.orb_type === "image" ? "🖼️" : selectedOrb.orb_type === "video" ? "🎬" : "📝"}
+              </div>
+              <div className="growth-orb-detail-info">
+                <p className="growth-orb-detail-title">{selectedOrb.task_title}</p>
+                <p className="growth-orb-detail-meta">
+                  类型：{selectedOrb.orb_type === "image" ? "图片" : selectedOrb.orb_type === "video" ? "视频" : "笔记"}
+                  {selectedOrb.is_rare ? " · ✨ 里程碑" : ""}
+                </p>
+                <p className="growth-orb-detail-meta">完成时间：{new Date(selectedOrb.created_at).toLocaleString()}</p>
               </div>
             </div>
-            <div className="dashboard-person-chip">
-              <div className="dashboard-avatar">{relationship?.counterpart.display_name.slice(0, 1).toUpperCase()}</div>
-              <div className="dashboard-relationship-copy">
-                <div className="dashboard-person-name-row">
-                  <Title level={3}>{relationship?.counterpart.display_name}</Title>
-                  <span className="dashboard-role-marker" aria-label={isOwner ? "puppy" : "owner"}>
-                    {getRoleMarker(isOwner ? "puppy" : "owner")}
-                  </span>
-                </div>
-                <Text type="secondary">{relationship?.counterpart.email}</Text>
-              </div>
+          ) : null}
+        </Modal>
+      </div>
+    );
+  };
+
+  const renderShopSection = () => {
+    const itemTypeLabel: Record<string, string> = {
+      bottle_theme: "瓶子主题",
+      orb_skin: "球球皮肤",
+      dashboard_bg: "背景主题",
+      entry_animation: "入瓶动画",
+      avatar_frame: "头像边框",
+      badge: "成就徽章",
+      title_item: "称号",
+    };
+    const grouped: Record<string, ShopItem[]> = {};
+    for (const item of shopItems) {
+      if (!grouped[item.item_type]) grouped[item.item_type] = [];
+      grouped[item.item_type].push(item);
+    }
+    const inventoryMap = new Map(shopInventory.map((i) => [i.id, i]));
+
+    return (
+      <div className="dashboard-section-stack">
+        <Card className="shop-header-card">
+          <div className="shop-header">
+            <div>
+              <h3 className="shop-title">金币商店</h3>
+              <p className="shop-subtitle">用金币解锁瓶子外观、皮肤和称号</p>
+            </div>
+            <div className="shop-balance">
+              <span className="shop-balance-value">{me.wallet.balance}</span>
+              <span className="shop-balance-label">金币</span>
             </div>
           </div>
-          <Tag color={getRelationshipTagColor(relationship?.relationship.status || "")}>
-            {relationship ? t(`dashboard.relationship_status.${relationship.relationship.status}` as never) : ""}
-          </Tag>
-        </div>
+        </Card>
 
-        <div className="dashboard-info-grid">
-          <div className="dashboard-info-row"><Text type="secondary">{t("dashboard.intimacy")}</Text><strong>{relationship?.relationship.intimacy_score}</strong></div>
-          <div className="dashboard-info-row"><Text type="secondary">{t("dashboard.invite_code")}</Text><strong>{me.user.invite_code}</strong></div>
-          <div className="dashboard-info-row"><Text type="secondary">{t("dashboard.wallet")}</Text><strong>{me.wallet.balance} {t("dashboard.coins")}</strong></div>
-        </div>
-      </Card>
-    </div>
-  );
+        {Object.entries(grouped).map(([type, items]) => (
+          <Card key={type} title={itemTypeLabel[type] ?? type} size="small" className="shop-category-card">
+            <div className="shop-item-grid">
+              {items.map((item) => {
+                const inv = inventoryMap.get(item.id);
+                const isOwned = item.owned;
+                const isEquipped = inv?.equipped ?? false;
+                return (
+                  <div key={item.id} className={`shop-item${isOwned ? " is-owned" : ""}${isEquipped ? " is-equipped" : ""}`}>
+                    <div className="shop-item-icon">{getShopItemEmoji(item.item_type, item.id)}</div>
+                    <div className="shop-item-name">{item.name}</div>
+                    <div className="shop-item-desc">{item.description}</div>
+                    <div className="shop-item-footer">
+                      {isEquipped ? (
+                        <Tag color="gold">已装备</Tag>
+                      ) : isOwned ? (
+                        <Button size="small" onClick={() => void handleEquipItem(item.id)} loading={shopBusy}>装备</Button>
+                      ) : (
+                        <Button
+                          size="small"
+                          type="primary"
+                          disabled={shopBusy || me.wallet.balance < item.price_coins}
+                          loading={shopBusy}
+                          onClick={() => void handlePurchaseItem(item.id)}
+                        >
+                          {item.price_coins === 0 ? "免费领取" : `${item.price_coins} 金币`}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        ))}
+
+        {shopItems.length === 0 ? (
+          <Card><Empty description="商店加载中…" /></Card>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderSocialSection = () => {
+    const lbTypeOptions = [
+      { value: "weekly_tasks" as const, label: "本周完成榜" },
+      { value: "streak" as const, label: "连续天数榜" },
+      { value: "collection" as const, label: "收集总榜" },
+    ];
+
+    return (
+      <div className="dashboard-section-stack">
+        {/* Showcase card */}
+        {showcase ? (
+          <Card className="social-showcase-card">
+            <div className="social-showcase-header">
+              <div className="social-showcase-avatar">{showcase.puppy_display_name.slice(0, 1).toUpperCase()}</div>
+              <div>
+                <p className="social-showcase-name">{showcase.puppy_display_name}</p>
+                {showcase.title_item_id ? <Tag color="gold">{showcase.title_item_id}</Tag> : null}
+              </div>
+            </div>
+            <div className="social-showcase-stats">
+              <div className="social-stat"><span className="social-stat-v">{showcase.total_orbs}</span><span className="social-stat-l">总球数</span></div>
+              <div className="social-stat"><span className="social-stat-v">{showcase.streak_days}</span><span className="social-stat-l">连续天</span></div>
+            </div>
+            {showcase.recent_orbs.length > 0 ? (
+              <div className="social-recent-orbs">
+                <p className="social-recent-label">最近完成</p>
+                <div className="social-recent-list">
+                  {showcase.recent_orbs.map((orb) => (
+                    <div key={orb.id} className="social-recent-item">
+                      <span className="social-recent-dot" style={{ background: orbColor(orb) }} />
+                      <span className="social-recent-title">{orb.task_title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
+
+        {/* Leaderboard */}
+        <Card
+          title="排行榜"
+          extra={
+            <Select
+              size="small"
+              value={leaderboardType}
+              options={lbTypeOptions}
+              onChange={(v) => setLeaderboardType(v)}
+              style={{ width: 130 }}
+            />
+          }
+          className="social-leaderboard-card"
+        >
+          {leaderboard ? (
+            <div className="social-leaderboard">
+              <p className="social-lb-label">{leaderboard.label}</p>
+              {leaderboard.entries.map((entry) => (
+                <div key={entry.user_id} className={`social-lb-row${entry.user_id === me.user.id ? " is-me" : ""}`}>
+                  <span className="social-lb-rank">#{entry.rank}</span>
+                  <span className="social-lb-name">{entry.display_name}{entry.user_id === me.user.id ? " (我)" : ""}</span>
+                  <span className="social-lb-score">{entry.score}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty description="加载中…" />
+          )}
+        </Card>
+      </div>
+    );
+  };
 
   const renderTasksSection = () => (
     <Card>
@@ -1687,6 +2071,12 @@ export default function Dashboard() {
     }
     if (activeSection === "profile") {
       return renderProfileSection();
+    }
+    if (activeSection === "shop") {
+      return renderShopSection();
+    }
+    if (activeSection === "social") {
+      return renderSocialSection();
     }
     return renderOverviewSection();
   };
