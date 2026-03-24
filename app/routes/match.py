@@ -17,6 +17,7 @@ from app.schemas import (
     CreateMatchRequestRequest,
     HandleMatchRequestRequest,
     ReportMatchRequest,
+    UpdateMatchPostRequest,
 )
 from app.security import verify_token
 from app.services import decode_identity_labels, get_current_relationship_for_user, normalize_user_profile, row_to_dict, utc_now
@@ -231,6 +232,31 @@ def create_match_post(
             (post_id,),
         ).fetchone()
         return {"post": row_to_dict(row)}
+
+
+@router.put("/match/posts/{post_id}")
+def update_match_post(
+    post_id: str,
+    payload: UpdateMatchPostRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    with transactional_connection() as connection:
+        row = connection.execute("SELECT * FROM match_posts WHERE id = ?", (post_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Match post not found.")
+        post = row_to_dict(row)
+        if post["user_id"] != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Cannot edit another user's post.")
+        if post["status"] != "active":
+            _raise_api_error(409, "MATCH_POST_NOT_ACTIVE", "Can only edit an active post.")
+        if payload.image_url and not payload.image_url.startswith("/uploads/match-posts/"):
+            raise HTTPException(status_code=400, detail="Invalid match post image.")
+        connection.execute(
+            "UPDATE match_posts SET intro = ?, image_url = ? WHERE id = ?",
+            (payload.intro.strip(), payload.image_url.strip() if payload.image_url else None, post_id),
+        )
+        updated = connection.execute("SELECT * FROM match_posts WHERE id = ?", (post_id,)).fetchone()
+        return {"post": row_to_dict(updated)}
 
 
 @router.post("/match/posts/{post_id}/close")

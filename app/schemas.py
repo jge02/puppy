@@ -81,6 +81,11 @@ class CreateMatchPostRequest(BaseModel):
     image_url: str | None = Field(default=None, max_length=2000)
 
 
+class UpdateMatchPostRequest(BaseModel):
+    intro: str = Field(min_length=1, max_length=300)
+    image_url: str | None = Field(default=None, max_length=2000)
+
+
 class CreateMatchRequestRequest(BaseModel):
     message: str | None = Field(default=None, max_length=300)
 

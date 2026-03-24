@@ -336,6 +336,8 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
   const [sent, setSent] = useState<MatchRequestSentItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [requestMessages, setRequestMessages] = useState<Record<string, string>>({});
+  const [swipeTab, setSwipeTab] = useState<"feed" | "inbox" | "mine">("feed");
+  const [editingPost, setEditingPost] = useState(false);
   const [swipedPostIds, setSwipedPostIds] = useState<string[]>([]);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [draggingPostId, setDraggingPostId] = useState<string | null>(null);
@@ -592,6 +594,38 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
       });
       setMyPost(null);
       await refreshMatchData(token);
+    } catch (err) {
+      setError(translateApiError(getErrorDetail(err), t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEditPost() {
+    if (!token || !myPost) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      let uploadedUrl: string | null = myPost.image_url ?? null;
+      if (postImageFile) {
+        const form = new FormData();
+        form.append("file", postImageFile);
+        const up = (await apiRequest("/match/posts/upload-image", { method: "POST", token, body: form })) as {
+          url: string;
+        };
+        uploadedUrl = up.url;
+      }
+      const result = (await apiRequest(`/match/posts/${encodeURIComponent(myPost.id)}`, {
+        method: "PUT",
+        token,
+        body: { intro: postIntro, image_url: uploadedUrl },
+      })) as { post: MatchPost };
+      setMyPost(result.post);
+      setEditingPost(false);
+      setPostIntro("");
+      setPostImageFile(null);
     } catch (err) {
       setError(translateApiError(getErrorDetail(err), t));
     } finally {
@@ -1176,6 +1210,18 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
               />
             ) : null}
             {myPost ? <p className="bind-feed-time">{formatDate(myPost.created_at, locale)}</p> : null}
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => {
+                setPostIntro(myPost?.intro ?? "");
+                setPostImageFile(null);
+                setEditingPost(true);
+              }}
+              disabled={busy}
+            >
+              {t("bind.match_edit_post")}
+            </Button>
             <Button type="button" variant="secondary" onClick={() => void handleClosePost()} disabled={busy}>
               {t("bind.match_close_post")}
             </Button>
@@ -1333,8 +1379,40 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
               </div>
             </div>
 
+            <div className="bind-tabs" role="tablist" aria-label="Stream sections">
+              <button
+                type="button"
+                className={`btn-tab${swipeTab === "feed" ? " is-active" : ""}`}
+                role="tab"
+                aria-selected={swipeTab === "feed"}
+                onClick={() => setSwipeTab("feed")}
+              >
+                {t("bind.community_feed")}
+              </button>
+              <button
+                type="button"
+                className={`btn-tab${swipeTab === "inbox" ? " is-active" : ""}`}
+                role="tab"
+                aria-selected={swipeTab === "inbox"}
+                onClick={() => setSwipeTab("inbox")}
+              >
+                📥 {t("bind.community_inbox")}{pendingCount > 0 ? ` (${pendingCount})` : ""}
+              </button>
+              <button
+                type="button"
+                className={`btn-tab${swipeTab === "mine" ? " is-active" : ""}`}
+                role="tab"
+                aria-selected={swipeTab === "mine"}
+                onClick={() => setSwipeTab("mine")}
+              >
+                {t("bind.community_mine")}
+              </button>
+            </div>
+
             <div className="bind-community-stage">
-              {renderFeedStream()}
+              {swipeTab === "feed" && renderFeedStream()}
+              {swipeTab === "inbox" && renderInboxStream()}
+              {swipeTab === "mine" && renderMineStream()}
             </div>
 
             {!showComposer && !pendingInvitePost ? (
@@ -1348,7 +1426,7 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
               </button>
             ) : null}
 
-            {showComposer ? (
+            {showComposer || editingPost ? (
               <div
                 className="bind-composer-backdrop"
                 role="dialog"
@@ -1356,12 +1434,15 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
                 aria-labelledby="bind-composer-title"
                 onClick={() => {
                   setShowComposer(false);
+                  setEditingPost(false);
                   setPostImageFile(null);
                 }}
               >
                 <div className="bind-composer" onClick={(event) => event.stopPropagation()}>
-                  <h3 id="bind-composer-title">{t("bind.community_publish_title")}</h3>
-                  <p>{t("bind.community_publish_hint")}</p>
+                  <h3 id="bind-composer-title">
+                    {editingPost ? t("bind.match_edit_post") : t("bind.community_publish_title")}
+                  </h3>
+                  {!editingPost ? <p>{t("bind.community_publish_hint")}</p> : null}
                   <FormField label={t("bind.match_intro_label")}>
                     <textarea
                       value={postIntro}
@@ -1386,6 +1467,7 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
                       variant="secondary"
                       onClick={() => {
                         setShowComposer(false);
+                        setEditingPost(false);
                         setPostImageFile(null);
                       }}
                     >
@@ -1395,10 +1477,10 @@ export default function BindPanel({ source, tab, mode = "default" }: BindPanelPr
                       type="button"
                       variant="primary"
                       role={isOwner ? "owner" : "puppy"}
-                      onClick={() => void handleCreatePost()}
+                      onClick={() => void (editingPost ? handleEditPost() : handleCreatePost())}
                       disabled={busy || !postIntro.trim()}
                     >
-                      {t("bind.match_create_post")}
+                      {editingPost ? t("bind.match_edit_post") : t("bind.match_create_post")}
                     </Button>
                   </ButtonGroup>
                 </div>

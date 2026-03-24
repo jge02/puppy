@@ -168,6 +168,7 @@ export type MessageKey =
   | "bind.match_create_post"
   | "bind.match_pick_image"
   | "bind.match_close_post"
+  | "bind.match_edit_post"
   | "bind.match_posts_title"
   | "bind.match_send_request"
   | "bind.match_message_placeholder"
@@ -402,6 +403,7 @@ const enMessages: Messages = {
   "bind.match_create_post": "Publish in plaza",
   "bind.match_pick_image": "Attach a photo",
   "bind.match_close_post": "Close my post",
+  "bind.match_edit_post": "Edit post",
   "bind.match_posts_title": "Open match posts",
   "bind.match_send_request": "Send invite",
   "bind.match_message_placeholder": "Optional message",
@@ -660,6 +662,7 @@ const zhCNMessages: Messages = {
   "dashboard.task_submission_link": "\u6253\u5f00\u63d0\u4ea4\u5185\u5bb9",
   "dashboard.task_submission_note_placeholder": "\u53ef\u9009\uff1a\u7ed9\u4e3b\u4eba\u7684\u5907\u6ce8",
   "bind.match_close_post": "\u5173\u95ed\u6211\u7684\u5e16\u5b50",
+  "bind.match_edit_post": "\u7f16\u8f91\u5e16\u5b50",
   "bind.match_posts_title": "\u5f00\u653e\u5339\u914d\u5e16\u5b50",
   "bind.match_send_request": "\u53d1\u9001\u9080\u8bf7",
   "bind.match_message_placeholder": "\u53ef\u9009\u7559\u8a00",
@@ -879,6 +882,7 @@ const zhTWMessages: Messages = {
   "dashboard.task_submission_link": "\u958b\u555f\u63d0\u4ea4\u5167\u5bb9",
   "dashboard.task_submission_note_placeholder": "\u53ef\u9078\uff1a\u7d66\u4e3b\u4eba\u7684\u5099\u8a3b",
   "bind.match_close_post": "\u95dc\u9589\u6211\u7684\u8cbc\u6587",
+  "bind.match_edit_post": "\u7de8\u8f2f\u8cbc\u6587",
   "bind.match_posts_title": "\u958b\u653e\u914d\u5c0d\u8cbc\u6587",
   "bind.match_send_request": "\u767c\u9001\u9080\u8acb",
   "bind.match_message_placeholder": "\u53ef\u9078\u7559\u8a00",
