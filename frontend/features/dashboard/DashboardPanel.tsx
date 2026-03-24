@@ -1558,23 +1558,33 @@ export default function Dashboard() {
 
           <div className="growth-bottle-stage">
             <div className="growth-bottle-wrap">
-              <div className="growth-bottle-vessel">
+              <div className={`growth-bottle-vessel${["bottle_glass","bottle_ocean","bottle_candy","bottle_mecha"].includes(growthSummary?.equipped_bottle_theme_id ?? "bottle_glass") ? " has-bottle-skin" : ""}`}>
+                {["bottle_glass","bottle_ocean","bottle_candy","bottle_mecha"].includes(growthSummary?.equipped_bottle_theme_id ?? "bottle_glass") && (
+                  <div className="bottle-skin-sprite-wrap">
+                    <img className={`bottle-skin-sprite ${growthSummary?.equipped_bottle_theme_id ?? "bottle_glass"}`} src="/bottle-skins.png" alt="" aria-hidden="true" />
+                  </div>
+                )}
                 <div className="growth-bottle-neck" />
                 <div className="growth-bottle-body">
                   {totalOrbs === 0 ? (
                     <div className="growth-bottle-empty-hint">完成任务后<br />球球会落入瓶中</div>
                   ) : (
                     <div className="growth-orb-grid">
-                      {displayOrbs.map((orb, idx) => (
-                        <button
-                          key={orb.id}
-                          className={`growth-orb${orb.is_rare ? " is-rare" : ""}`}
-                          style={{ background: orbColor(orb), animationDelay: `${idx * 40}ms` }}
-                          title={orb.task_title}
-                          onClick={() => setSelectedOrb(orb)}
-                          aria-label={orb.task_title}
-                        />
-                      ))}
+                      {(() => {
+                        const equippedOrbSkin = growthSummary?.equipped_orb_skin_id ?? "orb_bubble";
+                        const SKIN_IDS = ["orb_bubble", "orb_star", "orb_neon", "orb_jelly"];
+                        const hasSkin = SKIN_IDS.includes(equippedOrbSkin);
+                        return displayOrbs.map((orb, idx) => (
+                          <button
+                            key={orb.id}
+                            className={`growth-orb${orb.is_rare ? " is-rare" : ""}${hasSkin ? ` ${equippedOrbSkin}` : ""}`}
+                            style={{ ...(hasSkin ? {} : { background: orbColor(orb) }), animationDelay: `${idx * 40}ms` }}
+                            title={orb.task_title}
+                            onClick={() => setSelectedOrb(orb)}
+                            aria-label={orb.task_title}
+                          />
+                        ));
+                      })()}
                     </div>
                   )}
                 </div>

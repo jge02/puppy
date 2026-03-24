@@ -1707,6 +1707,78 @@
   50% { box-shadow: 0 0 16px 6px rgba(251,191,36,0.9); }
 }
 
+/* ── Bottle Skins: Sprite Sheet (1024×1536, 2×2 grid, each bottle 512×768) ── */
+/* At vessel width 100px: each bottle scales to 120px wide × 180px tall         */
+/* Center 120px bottle in 100px vessel: offset = (100-120)/2 = -10px            */
+
+.growth-bottle-vessel.has-bottle-skin {
+  position: relative;
+  overflow: hidden;
+}
+.growth-bottle-vessel.has-bottle-skin .growth-bottle-neck,
+.growth-bottle-vessel.has-bottle-skin .growth-bottle-body {
+  background: transparent;
+  border-color: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+
+.bottle-skin-sprite-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.growth-bottle-vessel.has-bottle-skin .growth-bottle-body {
+  padding: 8px 24px 24px 24px;
+}
+
+/* img height=200% of wrapper = 2 bottle rows; width=auto (proportional=240px) */
+.bottle-skin-sprite {
+  position: absolute;
+  height: 200%;
+  width: auto;
+}
+
+/* top-left: glass */
+.bottle-skin-sprite.bottle_glass  { top: 0;     left: calc(50% - 60px);  }
+/* top-right: ocean */
+.bottle-skin-sprite.bottle_ocean  { top: 0;     left: calc(50% - 180px); }
+/* bottom-left: candy (shift up 1 row = -100% of wrapper height) */
+.bottle-skin-sprite.bottle_candy  { top: -100%; left: calc(50% - 60px);  }
+/* bottom-right: mecha */
+.bottle-skin-sprite.bottle_mecha  { top: -100%; left: calc(50% - 180px); }
+
+/* ── Orb Skins: Sprite Sheet (2×2 grid) ────────────────── */
+.growth-orb.orb_star {
+  border-radius: 2px;
+}
+.growth-orb.orb_jelly {
+  border-radius: 45% 50% 50% 45%;
+}
+.growth-orb.orb_bubble {
+  background-image: url('/orb-skins.png');
+  background-size: 200% 200%;
+  background-position: 0% 0%;
+}
+.growth-orb.orb_star {
+  background-image: url('/orb-skins.png');
+  background-size: 200% 200%;
+  background-position: 100% 0%;
+}
+.growth-orb.orb_neon {
+  background-image: url('/orb-skins.png');
+  background-size: 200% 200%;
+  background-position: 0% 100%;
+}
+.growth-orb.orb_jelly {
+  background-image: url('/orb-skins.png');
+  background-size: 200% 200%;
+  background-position: 100% 100%;
+}
+
 .growth-bottle-count {
   font-size: 28px;
   font-weight: 900;
